@@ -101,7 +101,7 @@ export function Condition({
           name="maxTokens"
           value={maxLength}
           placeholder="count"
-          className="px-2 h-7 w-20"
+          className="px-2 h-7 w-20 bg-background"
           onChange={(e) => onMaxLengthChange(Number(e.target.value))}
           min="1"
           max="999999"
