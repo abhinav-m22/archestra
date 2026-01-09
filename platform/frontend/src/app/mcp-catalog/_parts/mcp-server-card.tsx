@@ -305,17 +305,17 @@ export function McpServerCard({
 
   const localServersInstalled = (
     <>
-      <div className="flex items-center gap-2">
-        <User className="h-4 w-4 text-muted-foreground" />
-        <span className="text-muted-foreground">
-          Credentials
+      <div className="flex items-start gap-2 min-w-0 flex-1 pt-0.5">
+        <User className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <span className="text-muted-foreground min-w-0 flex-1">
+          <span className="inline-block">Credentials</span>
           <WithoutPermissions permissions={{ mcpServer: ["admin"] }}>
             {" "}
             in your team
           </WithoutPermissions>
           :{" "}
           <span
-            className="font-medium text-foreground"
+            className="font-medium text-foreground whitespace-nowrap"
             data-testid={`${E2eTestId.CredentialsCount}-${installedServer?.catalogName}`}
           >
             {mcpServersCount}
@@ -327,7 +327,7 @@ export function McpServerCard({
           onClick={() => setIsManageUsersDialogOpen(true)}
           size="sm"
           variant="link"
-          className="h-7 text-xs"
+          className="h-7 text-xs shrink-0 -mt-1"
           data-testid={`${E2eTestId.ManageCredentialsButton}-${installedServer?.catalogName}`}
         >
           Manage
@@ -337,19 +337,19 @@ export function McpServerCard({
   );
   const usersAuthenticated = (
     <>
-      <div className="flex items-center gap-2">
-        <User className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-start gap-2 min-w-0 flex-1 pt-0.5">
+        <User className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
         <span
-          className="text-muted-foreground"
+          className="text-muted-foreground min-w-0 flex-1"
           data-testid={`${E2eTestId.CredentialsCount}-${installedServer?.catalogName}`}
         >
-          Credentials
+          <span className="inline-block">Credentials</span>
           <WithoutPermissions permissions={{ mcpServer: ["admin"] }}>
             {" "}
             in your team
           </WithoutPermissions>
           :{" "}
-          <span className="font-medium text-foreground">{mcpServersCount}</span>
+          <span className="font-medium text-foreground whitespace-nowrap">{mcpServersCount}</span>
         </span>
       </div>
       {mcpServersCount > 0 && (
@@ -357,7 +357,7 @@ export function McpServerCard({
           onClick={() => setIsManageUsersDialogOpen(true)}
           size="sm"
           variant="link"
-          className="h-7 text-xs"
+          className="h-7 text-xs shrink-0 -mt-1"
         >
           Manage
         </Button>
@@ -367,11 +367,11 @@ export function McpServerCard({
 
   const toolsAssigned = (
     <>
-      <div className="flex items-center gap-2">
-        <Wrench className="h-4 w-4 text-muted-foreground" />
-        <span className="text-muted-foreground">
-          Assigned to profile:{" "}
-          <span className="font-medium text-foreground">
+      <div className="flex items-start gap-2 min-w-0 flex-1 pt-0.5">
+        <Wrench className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <span className="text-muted-foreground min-w-0 flex-1">
+          <span className="inline-block">Assigned to profile:</span>{" "}
+          <span className="font-medium text-foreground whitespace-nowrap">
             {getToolsAssignedCount()}{" "}
             {toolsDiscoveredCount ? `(out of ${toolsDiscoveredCount})` : ""}
           </span>
@@ -382,7 +382,7 @@ export function McpServerCard({
           onClick={() => setIsToolsDialogOpen(true)}
           size="sm"
           variant="link"
-          className="h-7 text-xs"
+          className="h-7 text-xs shrink-0 -mt-1"
           data-testid={`${E2eTestId.ManageToolsButton}-${installedServer?.catalogName}`}
         >
           Manage
@@ -409,10 +409,10 @@ export function McpServerCard({
         noPermissionHandle="hide"
       >
         <div className="bg-muted/50 rounded-md mb-2 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-muted h-10">
+          <div className="flex items-start justify-between px-3 py-2 text-sm border-b border-muted min-h-10">
             {usersAuthenticated}
           </div>
-          <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-muted h-10">
+          <div className="flex items-start justify-between px-3 py-2 text-sm border-b border-muted min-h-10">
             {toolsAssigned}
           </div>
         </div>
@@ -467,10 +467,10 @@ export function McpServerCard({
         noPermissionHandle="hide"
       >
         <div className="bg-muted/50 rounded-md mb-2 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-muted h-10">
+          <div className="flex items-start justify-between px-3 py-2 text-sm border-b border-muted min-h-10">
             {localServersInstalled}
           </div>
-          <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-muted h-10">
+          <div className="flex items-start justify-between px-3 py-2 text-sm border-b border-muted min-h-10">
             {toolsAssigned}
           </div>
         </div>
