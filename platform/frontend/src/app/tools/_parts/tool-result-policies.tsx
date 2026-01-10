@@ -1,6 +1,6 @@
 import type { archestraApiTypes } from "@shared";
 import { toPath } from "lodash-es";
-import { ArrowRightIcon, Plus, Trash2Icon } from "lucide-react";
+import { ArrowRightIcon, Info, Plus, Trash2Icon } from "lucide-react";
 import { CodeText } from "@/components/code-text";
 import { DebouncedInput } from "@/components/debounced-input";
 import {
@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   useOperators,
   useResultPolicyMutation,
@@ -228,12 +234,13 @@ export function ToolResultPolicies({ tool }: { tool: ToolForPolicies }) {
       </div>
       {policies.map((policy) => (
         <PolicyCard key={policy.id}>
-          <div className="flex flex-col gap-2 w-full">
-            <div className="flex flex-row items-center gap-4 justify-between">
-              <div className="flex flex-row items-center gap-4">
-                If
+          <div className="flex flex-col gap-3 w-full">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm">If</span>
                 <DebouncedInput
                   placeholder="Attribute path"
+                  className="w-[140px]"
                   initialValue={policy.attributePath}
                   onChange={(attributePath) =>
                     toolResultPoliciesUpdateMutation.mutate({
@@ -267,6 +274,7 @@ export function ToolResultPolicies({ tool }: { tool: ToolForPolicies }) {
                 </Select>
                 <DebouncedInput
                   placeholder="Value"
+                  className="w-[120px]"
                   initialValue={policy.value}
                   onChange={(value) =>
                     toolResultPoliciesUpdateMutation.mutate({
@@ -275,6 +283,16 @@ export function ToolResultPolicies({ tool }: { tool: ToolForPolicies }) {
                     })
                   }
                 />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Matching is case-sensitive</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <Button
                 variant="ghost"
