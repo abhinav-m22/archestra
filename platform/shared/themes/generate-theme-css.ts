@@ -12,7 +12,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Import theme configuration
-import { THEME_IDS } from "./theme-config";
+import { SUPPORTED_THEMES } from "./theme-config";
 import type { ThemeId } from "./theme-utils";
 import themeRegistry from "./tweakcn-themes.json";
 
@@ -30,9 +30,38 @@ interface ThemeItem {
   };
 }
 
+// Variables to include from themes (in addition to oklch colors)
+const INCLUDED_VARS = [
+  // Border radius
+  "radius",
+  // Fonts
+  "font-sans",
+  "font-mono",
+  "font-serif",
+  // Spacing
+  "spacing",
+  // Letter spacing / tracking
+  "letter-spacing",
+  "tracking-tighter",
+  "tracking-tight",
+  "tracking-normal",
+  "tracking-wide",
+  "tracking-wider",
+  "tracking-widest",
+  // Shadows
+  "shadow-2xs",
+  "shadow-xs",
+  "shadow-sm",
+  "shadow",
+  "shadow-md",
+  "shadow-lg",
+  "shadow-xl",
+  "shadow-2xl",
+];
+
 /**
  * Generate CSS variables for a theme
- * Includes OKLCH color values and radius variable
+ * Includes OKLCH color values, fonts, spacing, tracking, radius, and shadows
  */
 function generateCSSVars(vars: Record<string, string>): string {
   return Object.entries(vars)
@@ -41,11 +70,11 @@ function generateCSSVars(vars: Record<string, string>): string {
       if (value.includes("oklch")) {
         return `  --${key}: ${value};`;
       }
-      // Keep radius variable for consistent border-radius
-      if (key === "radius") {
+      // Keep other included variables
+      if (INCLUDED_VARS.includes(key)) {
         return `  --${key}: ${value};`;
       }
-      // ignore everything else (fonts, shadows, etc.)
+      // ignore everything else
       return undefined;
     })
     .filter(Boolean)
@@ -84,13 +113,13 @@ function generateThemesCSS(): string {
  */\n`;
 
   // Filter to only supported themes
-  const supportedThemeIds = new Set(THEME_IDS);
+  const supportedThemeIds = new Set(SUPPORTED_THEMES);
   const supportedThemes = (themeRegistry.items as ThemeItem[]).filter((item) =>
     supportedThemeIds.has(item.name as ThemeId),
   );
 
-  // Sort themes by the order in THEME_IDS for consistency
-  const themeOrder = new Map(THEME_IDS.map((id, index) => [id, index]));
+  // Sort themes by the order in SUPPORTED_THEMES for consistency
+  const themeOrder = new Map(SUPPORTED_THEMES.map((id, index) => [id, index]));
   supportedThemes.sort(
     (a, b) =>
       (themeOrder.get(a.name as ThemeId) ?? 999) -
@@ -121,7 +150,7 @@ function main() {
   fs.writeFileSync(outputPath, css, "utf-8");
 
   console.log(`✅ Generated ${outputPath}`);
-  console.log(`📊 Generated ${THEME_IDS.length} themes`);
+  console.log(`📊 Generated ${SUPPORTED_THEMES.length} themes`);
 }
 
 main();
