@@ -349,7 +349,9 @@ export function McpServerCard({
             in your team
           </WithoutPermissions>
           :{" "}
-          <span className="font-medium text-foreground whitespace-nowrap">{mcpServersCount}</span>
+          <span className="font-medium text-foreground whitespace-nowrap">
+            {mcpServersCount}
+          </span>
         </span>
       </div>
       {mcpServersCount > 0 && (
