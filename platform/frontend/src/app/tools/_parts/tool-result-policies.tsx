@@ -1,6 +1,6 @@
 import type { archestraApiTypes } from "@shared";
 import { toPath } from "lodash-es";
-import { ArrowRightIcon, Info, Plus, Trash2Icon } from "lucide-react";
+import { ArrowRightIcon, Plus, Trash2Icon } from "lucide-react";
 import { CodeText } from "@/components/code-text";
 import { DebouncedInput } from "@/components/debounced-input";
 import {
@@ -18,12 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   useOperators,
   useResultPolicyMutation,
   useToolResultPolicies,
@@ -35,6 +29,7 @@ import {
   getResultTreatmentFromPolicies,
   type ToolResultTreatment,
 } from "@/lib/policy.utils";
+import { CaseSensitiveTooltip } from "@/components/case-sensitive-tooltip";
 import { PolicyCard } from "./policy-card";
 
 function AttributePathExamples() {
@@ -283,16 +278,7 @@ export function ToolResultPolicies({ tool }: { tool: ToolForPolicies }) {
                     })
                   }
                 />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Matching is case-sensitive</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <CaseSensitiveTooltip />
               </div>
               <Button
                 variant="ghost"
