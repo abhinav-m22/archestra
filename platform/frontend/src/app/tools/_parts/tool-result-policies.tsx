@@ -1,6 +1,7 @@
 import type { archestraApiTypes } from "@shared";
 import { toPath } from "lodash-es";
 import { ArrowRightIcon, Plus, Trash2Icon } from "lucide-react";
+import { CaseSensitiveTooltip } from "@/components/case-sensitive-tooltip";
 import { CodeText } from "@/components/code-text";
 import { DebouncedInput } from "@/components/debounced-input";
 import {
@@ -29,7 +30,6 @@ import {
   getResultTreatmentFromPolicies,
   type ToolResultTreatment,
 } from "@/lib/policy.utils";
-import { CaseSensitiveTooltip } from "@/components/case-sensitive-tooltip";
 import { PolicyCard } from "./policy-card";
 
 function AttributePathExamples() {
