@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "@ai-sdk/react";
-import { Eye, EyeOff, FileText, Globe, Plus } from "lucide-react";
+import { Eye, EyeOff, FileText, Globe, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -209,6 +209,9 @@ export default function ChatPage() {
   }, [initialModel, modelsByProvider]);
 
   const chatSession = useChatSession(conversationId);
+  const openConversationSearch = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("open-conversation-search"));
+  }, []);
 
   // Check if API key is configured for any provider
   const { data: chatApiKeys = [], isLoading: isLoadingApiKeys } =
@@ -878,6 +881,16 @@ export default function ChatPage() {
               )}
             </div>
             <div className="flex-1 flex justify-end gap-2 items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openConversationSearch}
+                className="text-xs gap-1.5"
+                title="Search conversations (⌘K / Ctrl+K)"
+              >
+                <Search className="h-3 w-3" />
+                Search chats
+              </Button>
               {hasPlaywrightMcp && isBrowserStreamingEnabled && (
                 <Button
                   variant={isBrowserPanelOpen ? "secondary" : "ghost"}
