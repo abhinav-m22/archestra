@@ -107,6 +107,9 @@ async function getSmartDefaultModel(
 
   // Check if Vertex AI is enabled - use Gemini without API key
   if (isVertexAiEnabled()) {
+    logger.info(
+      "getSmartDefaultModel:Vertex AI is enabled, using gemini-2.5-pro",
+    );
     return { model: "gemini-2.5-pro", provider: "gemini" };
   }
 
@@ -121,6 +124,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.post(
     "/api/chat",
     {
+      bodyLimit: config.api.bodyLimit,
       schema: {
         operationId: RouteId.StreamChat,
         description: "Stream chat response with MCP tools (useChat format)",
