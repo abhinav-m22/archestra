@@ -113,13 +113,14 @@ export function ModelSelector({
       return;
     }
 
+    handleOpenChange(false);
+
     // If there are messages, show warning dialog
     if (messageCount > 0) {
       setPendingModel(model);
     } else {
       onModelChange(model);
     }
-    handleOpenChange(false);
   };
 
   const handleConfirmChange = () => {
@@ -165,7 +166,10 @@ export function ModelSelector({
             </ModelSelectorName>
           </PromptInputButton>
         </ModelSelectorTrigger>
-        <ModelSelectorContent title="Select Model">
+        <ModelSelectorContent
+          title="Select Model"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <ModelSelectorInput placeholder="Search models..." />
           <ModelSelectorList>
             <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
