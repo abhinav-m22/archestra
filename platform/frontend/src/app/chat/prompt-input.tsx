@@ -111,17 +111,16 @@ const PromptInputContent = ({
             />
           </div>
         )}
-        {/* File attachments display */}
-        <PromptInputAttachments>
-          {(attachment) => <PromptInputAttachment data={attachment} />}
-        </PromptInputAttachments>
       </PromptInputHeader>
+      {/* File attachments display - shown inline above textarea */}
+      <PromptInputAttachments className="px-3 pt-2 pb-0">
+        {(attachment) => <PromptInputAttachment data={attachment} />}
+      </PromptInputAttachments>
       <PromptInputBody>
         <PromptInputTextarea
           placeholder="Type a message..."
           ref={textareaRef}
           className="px-4"
-          disableEnterSubmit={status !== "ready"}
         />
       </PromptInputBody>
       <PromptInputFooter>
@@ -162,7 +161,7 @@ const PromptInputContent = ({
             textareaRef={textareaRef}
             onTranscriptionChange={handleTranscriptionChange}
           />
-          <PromptInputSubmit className="!h-8" status={status} />
+          <PromptInputSubmit className="h-8!" status={status} />
         </div>
       </PromptInputFooter>
     </PromptInput>
