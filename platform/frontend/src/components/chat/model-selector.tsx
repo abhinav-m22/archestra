@@ -108,7 +108,6 @@ export function ModelSelector({
 
   const handleSelectModel = (model: string) => {
     // If selecting the same model, just close the dialog
-    // If selecting the same model, just close the dialog
     if (model === selectedModel) {
       handleOpenChange(false);
       return;
@@ -120,7 +119,7 @@ export function ModelSelector({
     } else {
       onModelChange(model);
     }
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const handleConfirmChange = () => {
