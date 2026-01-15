@@ -1036,32 +1036,29 @@ export default function ChatPage() {
                     <Globe className="h-3 w-3 mr-1" />
                     Browser
                   </Button>
-                </>
-              )}
-            </div>
-            <div className="flex-1 flex justify-end gap-2 items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={openConversationSearch}
-                className="text-xs gap-1.5"
-                title="Search conversations (⌘K / Ctrl+K)"
-              >
-                <Search className="h-3 w-3" />
-                Search chats
-              </Button>
-              {hasPlaywrightMcp && isBrowserStreamingEnabled && (
+                )}
+              </div>
+              <div className="flex-1 flex justify-end gap-2 items-center">
                 <Button
-                  variant={isBrowserPanelOpen ? "secondary" : "ghost"}
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setIsBrowserPanelOpen(!isBrowserPanelOpen)}
-                  className="text-xs"
+                  onClick={openConversationSearch}
+                  className="text-xs gap-1.5"
+                  title="Search conversations (⌘K / Ctrl+K)"
                 >
-                  <Globe className="h-3 w-3 mr-1" />
-                  Browser
+                  <Search className="h-3 w-3" />
+                  Search chats
                 </Button>
-              )}
-              {!isArtifactOpen && (
+                {hasPlaywrightMcp && isBrowserStreamingEnabled && (
+                  <Button
+                    variant={isBrowserPanelOpen ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setIsBrowserPanelOpen(!isBrowserPanelOpen)}
+                    className="text-xs"
+                  >
+                    <Globe className="h-3 w-3 mr-1" />
+                    Browser
+                  </Button>
                 )}
                 {!isArtifactOpen && (
                   <Button
