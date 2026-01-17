@@ -486,11 +486,19 @@ The following environment variables can be used to configure Archestra Platform:
   - Default: Internal PostgreSQL (Docker) or managed instance (Helm)
   - Required for production deployments with external database
 
-- **`ARCHESTRA_API_BASE_URL`** - Base URL for the Archestra API proxy. This is where your agents should connect to instead of the LLM provider directly.
+- **`ARCHESTRA_API_BASE_URL`** - Internal URL where the frontend connects to the backend API server.
 
   - Default: `http://localhost:9000`
-  - Example: `http://localhost:9001` or `https://api.example.com`
-  - Note: This configures both the port where the backend API server listens (parsed from the URL) and the base URL that the frontend uses to connect to the backend
+  - Example: `http://localhost:9001` or `https://api.internal.example.com`
+  - Note: The backend parses the port from this URL to determine its listening port. In Kubernetes deployments, this is typically the internal service URL (e.g., `http://archestra-backend:9000`). For external access URLs shown in the UI, use `ARCHESTRA_API_EXTERNAL_BASE_URL` instead.
+
+- **`ARCHESTRA_API_EXTERNAL_BASE_URL`** - Public URL for connecting to Archestra's LLM Proxy, MCP Gateway and A2A Gateway from outside the Kubernetes cluster.
+
+  This URL is displayed in the UI connection instructions to help users configure their agents. It does not affect internal routing.
+
+  - Default: Falls back to `ARCHESTRA_API_BASE_URL`
+  - Example: `https://api.archestra.com`
+  - Use case: Set this when your external access URL differs from the internal service URL (common in Kubernetes with ingress/load balancers)
 
 - **`ARCHESTRA_API_BODY_LIMIT`** - Maximum request body size for LLM proxy and chat routes.
 
@@ -731,3 +739,24 @@ These environment variables configure the Incoming Email feature, which allows e
   - Optional: If set, subscription is created automatically on server startup
   - Example: `https://api.yourcompany.com/api/webhooks/incoming-email`
   - If not set, configure the subscription manually via Settings > Incoming Email
+
+### Knowledge Graph Configuration
+
+These environment variables configure the Knowledge Graph feature, which automatically ingests documents uploaded via chat into a knowledge graph for enhanced retrieval. See [Knowledge Graphs](/docs/platform-knowledge-graphs) for setup instructions.
+
+- **`ARCHESTRA_KNOWLEDGE_GRAPH_PROVIDER`** - Knowledge graph provider to use.
+
+  - Default: Not set (feature disabled)
+  - Options: `lightrag`
+  - Required to enable the knowledge graph feature
+
+- **`ARCHESTRA_KNOWLEDGE_GRAPH_LIGHTRAG_API_URL`** - URL of the LightRAG API server.
+
+  - Required when: `ARCHESTRA_KNOWLEDGE_GRAPH_PROVIDER=lightrag`
+  - Example: `http://lightrag:9621`
+  - The LightRAG server must be accessible from the Archestra backend
+
+- **`ARCHESTRA_KNOWLEDGE_GRAPH_LIGHTRAG_API_KEY`** - API key for authenticating with LightRAG.
+
+  - Optional: Only required if your LightRAG server is configured with authentication
+  - Note: Keep this value secure; do not commit to version control

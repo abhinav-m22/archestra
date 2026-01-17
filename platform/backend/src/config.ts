@@ -16,6 +16,10 @@ import {
   type EmailProviderType,
   EmailProviderTypeSchema,
 } from "@/types/email-provider-type";
+import {
+  type KnowledgeGraphProviderType,
+  KnowledgeGraphProviderTypeSchema,
+} from "@/types/knowledge-graph";
 import packageJson from "../../package.json";
 
 /**
@@ -216,6 +220,18 @@ const parseIncomingEmailProvider = (): EmailProviderType | undefined => {
 };
 
 /**
+ * Parse knowledge graph provider from environment variable
+ */
+const parseKnowledgeGraphProvider = ():
+  | KnowledgeGraphProviderType
+  | undefined => {
+  const provider =
+    process.env.ARCHESTRA_KNOWLEDGE_GRAPH_PROVIDER?.toLowerCase();
+  const result = KnowledgeGraphProviderTypeSchema.safeParse(provider);
+  return result.success ? result.data : undefined;
+};
+
+/**
  * Parse body limit from environment variable.
  * Supports numeric bytes (e.g., "52428800") or human-readable format (e.g., "50MB", "100KB").
  */
@@ -307,6 +323,13 @@ export default {
       },
     },
   },
+  knowledgeGraph: {
+    provider: parseKnowledgeGraphProvider(),
+    lightrag: {
+      apiUrl: process.env.ARCHESTRA_KNOWLEDGE_GRAPH_LIGHTRAG_API_URL || "",
+      apiKey: process.env.ARCHESTRA_KNOWLEDGE_GRAPH_LIGHTRAG_API_KEY,
+    },
+  },
   auth: {
     secret: process.env.ARCHESTRA_AUTH_SECRET,
     trustedOrigins: getTrustedOrigins(),
@@ -365,6 +388,11 @@ export default {
       baseUrl: process.env.ARCHESTRA_OLLAMA_BASE_URL,
       useV2Routes: process.env.ARCHESTRA_OLLAMA_USE_V2_ROUTES !== "false",
     },
+    zhipuai: {
+      baseUrl:
+        process.env.ARCHESTRA_ZHIPUAI_BASE_URL ||
+        "https://api.z.ai/api/paas/v4",
+    },
   },
   chat: {
     openai: {
@@ -387,6 +415,12 @@ export default {
     },
     ollama: {
       apiKey: process.env.ARCHESTRA_CHAT_OLLAMA_API_KEY || "",
+    },
+    zhipuai: {
+      apiKey: process.env.ARCHESTRA_CHAT_ZHIPUAI_API_KEY || "",
+      baseUrl:
+        process.env.ARCHESTRA_CHAT_ZHIPUAI_BASE_URL ||
+        "https://api.z.ai/api/paas/v4",
     },
     mcp: {
       remoteServerUrl: process.env.ARCHESTRA_CHAT_MCP_SERVER_URL || "",
