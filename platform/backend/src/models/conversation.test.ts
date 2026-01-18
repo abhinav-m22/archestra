@@ -1237,4 +1237,198 @@ describe("ConversationModel", () => {
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe(conversation.id);
   });
+
+  test("findAll search escapes percent sign in search query", async ({
+    makeUser,
+    makeOrganization,
+    makeAgent,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const agent = await makeAgent({
+      name: "Escape Percent Agent",
+      teams: [],
+    });
+
+    // Create conversation with % in title
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "100% Complete",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Create conversation without % in title
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "Other Conversation",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Search for % should only match the conversation with % in title
+    // If % is not escaped, it would act as a wildcard and match everything
+    const results = await ConversationModel.findAll(user.id, org.id, "%");
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe("100% Complete");
+  });
+
+  test("findAll search escapes underscore in search query", async ({
+    makeUser,
+    makeOrganization,
+    makeAgent,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const agent = await makeAgent({
+      name: "Escape Underscore Agent",
+      teams: [],
+    });
+
+    // Create conversation with _ in title
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "file_name",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Create conversation with similar pattern but no underscore
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "filename",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Search for _ should only match the conversation with _ in title
+    // If _ is not escaped, it would act as single-character wildcard
+    const results = await ConversationModel.findAll(user.id, org.id, "_");
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe("file_name");
+  });
+
+  test("findAll search escapes backslash in search query", async ({
+    makeUser,
+    makeOrganization,
+    makeAgent,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const agent = await makeAgent({
+      name: "Escape Backslash Agent",
+      teams: [],
+    });
+
+    // Create conversation with backslash in title
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "C:\\Users\\test",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Create conversation without backslash
+    await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "C Users test",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    // Search for backslash should only match the conversation with backslash
+    const results = await ConversationModel.findAll(user.id, org.id, "\\");
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe("C:\\Users\\test");
+  });
+
+  test("findAll search limits messages per conversation for preview", async ({
+    makeUser,
+    makeOrganization,
+    makeAgent,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const agent = await makeAgent({
+      name: "Message Limit Agent",
+      teams: [],
+    });
+
+    const conversation = await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "Many Messages",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    const MessageModel = (await import("./message")).default;
+
+    // Create more messages than the limit (MESSAGES_PER_CONVERSATION_LIMIT = 10)
+    for (let i = 0; i < 15; i++) {
+      await MessageModel.create({
+        conversationId: conversation.id,
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: {
+          id: `temp-${i}`,
+          role: i % 2 === 0 ? "user" : "assistant",
+          parts: [{ type: "text", text: `Message ${i} with searchterm` }],
+        },
+      });
+    }
+
+    const results = await ConversationModel.findAll(
+      user.id,
+      org.id,
+      "searchterm",
+    );
+
+    expect(results).toHaveLength(1);
+    // Should have at most MESSAGES_PER_CONVERSATION_LIMIT (10) messages
+    expect(results[0].messages.length).toBeLessThanOrEqual(10);
+  });
+
+  test("findAll search returns results ordered by updatedAt descending", async ({
+    makeUser,
+    makeOrganization,
+    makeAgent,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const agent = await makeAgent({ name: "Search Order Agent", teams: [] });
+
+    const conv1 = await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "Python First",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const conv2 = await ConversationModel.create({
+      userId: user.id,
+      organizationId: org.id,
+      agentId: agent.id,
+      title: "Python Second",
+      selectedModel: "claude-3-haiku-20240307",
+    });
+
+    const results = await ConversationModel.findAll(user.id, org.id, "Python");
+
+    expect(results).toHaveLength(2);
+    // Most recently updated first
+    expect(results[0].id).toBe(conv2.id);
+    expect(results[1].id).toBe(conv1.id);
+  });
 });

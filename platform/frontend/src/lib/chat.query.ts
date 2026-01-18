@@ -56,13 +56,10 @@ export function useConversations(search?: string) {
     queryKey: ["conversations", search],
     queryFn: async () => {
       const trimmedSearch = search?.trim();
-      const fetchConversations = getChatConversations as unknown as (options?: {
-        query?: { search?: string };
-      }) => Promise<{ data: Conversation[]; error: unknown }>;
 
-      const { data, error } = await fetchConversations(
-        trimmedSearch ? { query: { search: trimmedSearch } } : {},
-      );
+      const { data, error } = await getChatConversations({
+        query: trimmedSearch ? { search: trimmedSearch } : undefined,
+      });
 
       if (error) throw new Error("Failed to fetch conversations");
       return data;
