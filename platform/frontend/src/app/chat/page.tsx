@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "@ai-sdk/react";
-import { Eye, EyeOff, FileText, Globe, Plus, Search } from "lucide-react";
+import { Eye, EyeOff, FileText, Globe, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -230,9 +230,6 @@ export default function ChatPage() {
   }, [initialModel, modelsByProvider]);
 
   const chatSession = useChatSession(conversationId);
-  const openConversationSearch = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("open-conversation-search"));
-  }, []);
 
   // Check if API key is configured for any provider
   const { data: chatApiKeys = [], isLoading: isLoadingApiKeys } =

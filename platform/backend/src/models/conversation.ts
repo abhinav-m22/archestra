@@ -2,7 +2,16 @@ import {
   TOOL_ARTIFACT_WRITE_FULL_NAME,
   TOOL_TODO_WRITE_FULL_NAME,
 } from "@shared";
-import { and, desc, eq, getTableColumns } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  ilike,
+  isNotNull,
+  or,
+  sql,
+} from "drizzle-orm";
 import db, { schema } from "@/database";
 import type {
   Conversation,
@@ -67,37 +76,125 @@ class ConversationModel {
    * Get all conversations for a user without messages.
    * Messages are fetched separately via findById when a conversation is opened.
    * This significantly improves performance for the conversations list.
+   *
+   * When searching, messages ARE included to enable preview snippets (smaller result set).
+   *
+   * @param searchQuery - Optional search string to filter conversations by title or message content
    */
   static async findAll(
     userId: string,
     organizationId: string,
+    searchQuery?: string,
   ): Promise<Conversation[]> {
-    const rows = await db
-      .select({
-        conversation: getTableColumns(schema.conversationsTable),
-        agent: {
-          id: schema.agentsTable.id,
-          name: schema.agentsTable.name,
-        },
-      })
-      .from(schema.conversationsTable)
-      .innerJoin(
-        schema.agentsTable,
-        eq(schema.conversationsTable.agentId, schema.agentsTable.id),
-      )
-      .where(
-        and(
-          eq(schema.conversationsTable.userId, userId),
-          eq(schema.conversationsTable.organizationId, organizationId),
-        ),
-      )
-      .orderBy(desc(schema.conversationsTable.updatedAt));
+    const trimmedSearch = searchQuery?.trim();
 
-    return rows.map((row) => ({
-      ...row.conversation,
-      agent: row.agent,
-      messages: [], // Messages fetched separately via findById
-    }));
+    // Build WHERE conditions
+    const conditions = [
+      eq(schema.conversationsTable.userId, userId),
+      eq(schema.conversationsTable.organizationId, organizationId),
+    ];
+
+    // Add search filter if provided
+    if (trimmedSearch) {
+      const searchPattern = `%${trimmedSearch}%`;
+
+      // 1. Conversation title (text column)
+      // 2. Message content (JSONB cast to text)
+      const searchConditions = or(
+        // Search in title (handles null titles gracefully)
+        and(
+          isNotNull(schema.conversationsTable.title),
+          ilike(schema.conversationsTable.title, searchPattern),
+        ),
+        // Search through messages JSONB content
+        // Uses EXISTS for early termination
+        sql`EXISTS (
+          SELECT 1 FROM ${schema.messagesTable}
+          WHERE ${schema.messagesTable.conversationId} = ${schema.conversationsTable.id}
+          AND ${schema.messagesTable.content}::text ILIKE ${searchPattern}
+        )`,
+      );
+
+      if (searchConditions) {
+        conditions.push(searchConditions);
+      }
+    }
+
+    // Include messages only during search for preview snippets
+    if (trimmedSearch) {
+      const rows = await db
+        .select({
+          conversation: getTableColumns(schema.conversationsTable),
+          message: getTableColumns(schema.messagesTable),
+          agent: {
+            id: schema.agentsTable.id,
+            name: schema.agentsTable.name,
+          },
+        })
+        .from(schema.conversationsTable)
+        .innerJoin(
+          schema.agentsTable,
+          eq(schema.conversationsTable.agentId, schema.agentsTable.id),
+        )
+        .leftJoin(
+          schema.messagesTable,
+          eq(schema.conversationsTable.id, schema.messagesTable.conversationId),
+        )
+        .where(and(...conditions))
+        .orderBy(
+          desc(schema.conversationsTable.updatedAt),
+          schema.messagesTable.createdAt,
+        );
+
+      // Group messages by conversation
+      const conversationMap = new Map<string, Conversation>();
+
+      for (const row of rows) {
+        const conversationId = row.conversation.id;
+
+        if (!conversationMap.has(conversationId)) {
+          conversationMap.set(conversationId, {
+            ...row.conversation,
+            agent: row.agent,
+            messages: [],
+          });
+        }
+
+        const conversation = conversationMap.get(conversationId);
+        if (conversation && row?.message?.content) {
+          // Merge database UUID into message content
+          conversation.messages.push({
+            ...row.message.content,
+            id: row.message.id,
+          });
+        }
+      }
+
+      return Array.from(conversationMap.values());
+    } else {
+      // Non-search case: exclude messages for performance
+      const rows = await db
+        .select({
+          conversation: getTableColumns(schema.conversationsTable),
+          agent: {
+            id: schema.agentsTable.id,
+            name: schema.agentsTable.name,
+          },
+        })
+        .from(schema.conversationsTable)
+        .innerJoin(
+          schema.agentsTable,
+          eq(schema.conversationsTable.agentId, schema.agentsTable.id),
+        )
+        .where(and(...conditions))
+        .orderBy(desc(schema.conversationsTable.updatedAt));
+
+      return rows.map((row) => ({
+        ...row.conversation,
+        agent: row.agent,
+        messages: [], // Messages fetched separately via findById
+      }));
+    }
   }
 
   static async findById({

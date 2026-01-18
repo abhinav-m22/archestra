@@ -12,6 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useConversations } from "@/lib/chat.query";
 
 /**
@@ -43,8 +44,8 @@ function getConversationDisplayTitle(
 }
 
 /**
- * Extracts all text content from messages for search purposes.
- * Unlike getConversationDisplayTitle, this includes all messages (user + AI).
+ * Extracts all text content from messages for preview purposes.
+ * Includes all messages (user + AI) to provide search context.
  */
 function extractTextFromMessages(
   // biome-ignore lint/suspicious/noExplicitAny: UIMessage structure from AI SDK is dynamic
@@ -63,52 +64,6 @@ function extractTextFromMessages(
     }
   }
   return textParts.join(" ");
-}
-
-/** Checks if a conversation matches the search query (title or content) */
-function matchesQuery(query: string, title: string, content: string): boolean {
-  if (!query.trim()) return true;
-
-  const queryLower = query.toLowerCase().trim();
-  const titleLower = title.toLowerCase();
-  const contentLower = content.toLowerCase();
-
-  return titleLower.includes(queryLower) || contentLower.includes(queryLower);
-}
-
-/**
- * Calculates relevance score for search results.
- * Scoring: title match (100) > title prefix match (+50) > early content match (15) > late content match (10)
- */
-function calculateMatchScore(
-  query: string,
-  title: string,
-  content: string,
-): number {
-  if (!query) return 0;
-
-  const queryLower = query.toLowerCase().trim();
-  const titleLower = title.toLowerCase();
-  const contentLower = content.toLowerCase();
-
-  let score = 0;
-
-  if (titleLower.includes(queryLower)) {
-    score += 100;
-    if (titleLower.startsWith(queryLower)) {
-      score += 50;
-    }
-  }
-
-  const contentMatchIndex = contentLower.indexOf(queryLower);
-  if (contentMatchIndex !== -1) {
-    score += 10;
-    if (contentMatchIndex < 100) {
-      score += 5;
-    }
-  }
-
-  return score;
 }
 
 /** Groups conversations into time-based buckets for organized display */
@@ -149,53 +104,29 @@ export function ConversationSearchPalette({
   onOpenChange,
 }: ConversationSearchPaletteProps) {
   const router = useRouter();
-  const { data: conversations = [], isLoading } = useConversations();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filter conversations based on search query
-  const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) {
-      // When no search, return all conversations grouped by date
-      return conversations;
-    }
+  // Debounce search query to reduce API calls while typing
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-    const query = searchQuery.trim();
-    const results = conversations
-      .map((conv) => {
-        const title = conv.title || "";
-        const content = extractTextFromMessages(conv.messages);
-        const displayTitle = getConversationDisplayTitle(
-          conv.title,
-          conv.messages,
-        );
+  // Fetch conversations with backend search
+  const {
+    data: conversations = [],
+    isLoading,
+    isFetching,
+  } = useConversations(debouncedSearch);
 
-        return {
-          ...conv,
-          displayTitle,
-          title,
-          content,
-          score: calculateMatchScore(query, title, content),
-        };
-      })
-      .filter((conv) => matchesQuery(query, conv.title, conv.content))
-      .sort((a, b) => {
-        if (b.score !== a.score) {
-          return b.score - a.score;
-        }
-        return (
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-      });
-
-    return results;
-  }, [conversations, searchQuery]);
+  // Show skeleton during typing or initial fetch
+  const isSearching = searchQuery.trim().length > 0;
+  const isTyping = searchQuery !== debouncedSearch;
+  const isSearchingAndFetching = isSearching && (isTyping || isFetching);
 
   const groupedConversations = useMemo(() => {
-    if (searchQuery.trim()) {
+    if (debouncedSearch.trim()) {
       return null;
     }
-    return groupConversationsByDate(filteredConversations);
-  }, [filteredConversations, searchQuery]);
+    return groupConversationsByDate(conversations);
+  }, [conversations, debouncedSearch]);
 
   useEffect(() => {
     if (!open) {
@@ -213,7 +144,7 @@ export function ConversationSearchPalette({
     onOpenChange(false);
   };
 
-  /** Generates a contextual preview snippet, highlighting the search query if present */
+  /** Generates a contextual preview snippet with search term context */
   const getPreviewText = (
     // biome-ignore lint/suspicious/noExplicitAny: UIMessage structure from AI SDK is dynamic
     messages?: any[],
@@ -272,14 +203,28 @@ export function ConversationSearchPalette({
     return parts.length > 0 ? parts : text;
   };
 
-  const renderConversationItem = (
-    conv: (typeof filteredConversations)[number],
-    showPreview = false,
-  ) => {
-    const preview = showPreview
-      ? getPreviewText(conv.messages, searchQuery)
-      : "";
+  // Loading skeleton for search results
+  const SKELETON_IDS = [1, 2, 3, 4, 5];
+  const SearchSkeleton = () => (
+    <div className="py-2 px-3 space-y-3">
+      {SKELETON_IDS.map((id) => (
+        <div key={id} className="flex items-start gap-2 py-2">
+          <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+            <div className="h-3 bg-muted rounded w-full animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderConversationItem = (conv: (typeof conversations)[number]) => {
+    const isSearchActive = debouncedSearch.trim().length > 0;
     const displayTitle = getConversationDisplayTitle(conv.title, conv.messages);
+    const preview = isSearchActive
+      ? getPreviewText(conv.messages, debouncedSearch)
+      : "";
 
     return (
       <CommandItem
@@ -294,9 +239,9 @@ export function ConversationSearchPalette({
             {displayTitle}
           </span>
         </div>
-        {showPreview && preview && (
+        {isSearchActive && preview && (
           <div className="text-xs text-muted-foreground line-clamp-2 w-full pl-6">
-            {highlightMatch(preview, searchQuery)}
+            {highlightMatch(preview, debouncedSearch)}
           </div>
         )}
       </CommandItem>
@@ -317,10 +262,12 @@ export function ConversationSearchPalette({
         onValueChange={setSearchQuery}
       />
       <CommandList className="max-h-[500px]">
-        {isLoading ? (
+        {isLoading && !isSearching ? (
           <div className="py-6 text-center text-sm text-muted-foreground">
             Loading conversations...
           </div>
+        ) : isSearchingAndFetching ? (
+          <SearchSkeleton />
         ) : (
           <>
             {!searchQuery.trim() && (
@@ -335,14 +282,12 @@ export function ConversationSearchPalette({
               </CommandGroup>
             )}
 
-            {searchQuery.trim() ? (
-              filteredConversations.length === 0 ? (
+            {debouncedSearch.trim() ? (
+              conversations.length === 0 ? (
                 <CommandEmpty>No conversations found.</CommandEmpty>
               ) : (
-                <CommandGroup heading="Conversations">
-                  {filteredConversations.map((conv) =>
-                    renderConversationItem(conv, true),
-                  )}
+                <CommandGroup heading="Search Results">
+                  {conversations.map((conv) => renderConversationItem(conv))}
                 </CommandGroup>
               )
             ) : groupedConversations ? (
@@ -375,7 +320,7 @@ export function ConversationSearchPalette({
                     )}
                   </CommandGroup>
                 )}
-                {filteredConversations.length === 0 && (
+                {conversations.length === 0 && (
                   <CommandEmpty>No conversations yet.</CommandEmpty>
                 )}
               </>
