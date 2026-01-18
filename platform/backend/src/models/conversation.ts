@@ -206,10 +206,7 @@ class ConversationModel {
 
         if (!conversationMap.has(conversationId)) {
           // Stop adding new conversations if we've reached the limit
-          if (
-            conversationMap.size >= ConversationModel.SEARCH_RESULT_LIMIT &&
-            !conversationMap.has(conversationId)
-          ) {
+          if (conversationMap.size >= ConversationModel.SEARCH_RESULT_LIMIT) {
             continue;
           }
           conversationMap.set(conversationId, {
