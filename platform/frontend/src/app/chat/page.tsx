@@ -24,14 +24,10 @@ import { BrowserPanel } from "@/components/chat/browser-panel";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ConversationArtifactPanel } from "@/components/chat/conversation-artifact";
 import { InitialAgentSelector } from "@/components/chat/initial-agent-selector";
-import { McpToolsDisplay } from "@/components/chat/mcp-tools-display";
 import { PromptDialog } from "@/components/chat/prompt-dialog";
 import { PromptVersionHistoryDialog } from "@/components/chat/prompt-version-history-dialog";
-import { QueuedMessagesList } from "@/components/chat/queued-messages-list";
 import { StreamTimeoutWarning } from "@/components/chat/stream-timeout-warning";
 import { PermissivePolicyBar } from "@/components/permissive-policy-bar";
-import { WithPermissions } from "@/components/roles/with-permissions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,7 +38,7 @@ import {
 } from "@/components/ui/card";
 import { Version } from "@/components/version";
 import { useChatSession } from "@/contexts/global-chat-context";
-import { useProfiles } from "@/lib/agent.query";
+import { useProfilesQuery } from "@/lib/agent.query";
 import { useHasPermissions } from "@/lib/auth.query";
 import {
   useConversation,
@@ -53,7 +49,7 @@ import {
 } from "@/lib/chat.query";
 import {
   useChatModelsQuery,
-  useModelsByProvider,
+  useModelsByProviderQuery,
 } from "@/lib/chat-models.query";
 import {
   type SupportedChatProvider,
@@ -68,7 +64,7 @@ import {
   clearPendingActions,
   getPendingActions,
 } from "@/lib/pending-tool-state";
-import { usePrompt, usePrompts } from "@/lib/prompts.query";
+import { usePrompt, usePromptsQuery } from "@/lib/prompts.query";
 import ArchestraPromptInput from "./prompt-input";
 
 const CONVERSATION_QUERY_PARAM = "conversation";
@@ -107,8 +103,8 @@ export default function ChatPage() {
     Array<{ url: string; mediaType: string; filename?: string }>
   >([]);
   const newlyCreatedConversationRef = useRef<string | undefined>(undefined);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const userMessageJustEdited = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const autoSendTriggeredRef = useRef(false);
 
   // Dialog management for MCP installation
@@ -125,11 +121,13 @@ export default function ChatPage() {
   const [isBrowserPanelOpen, setIsBrowserPanelOpen] = useState(false);
 
   // Fetch prompts for conversation prompt name lookup
-  const { data: prompts = [] } = usePrompts();
+  const { data: prompts = [] } = usePromptsQuery();
 
   // Fetch profiles and models for initial chat (no conversation)
-  const { data: allProfiles = [] } = useProfiles();
-  const { modelsByProvider } = useModelsByProvider();
+  // Using non-suspense queries to avoid blocking page render
+  const { data: allProfiles = [] } = useProfilesQuery();
+  const { modelsByProvider, isLoading: isModelsLoading } =
+    useModelsByProviderQuery();
 
   // State for initial chat (when no conversation exists yet)
   const [initialAgentId, setInitialAgentId] = useState<string | null>(null);
@@ -188,8 +186,20 @@ export default function ChatPage() {
     }
   }, [allProfiles, initialAgentId, searchParams, prompts]);
 
+  // Initialize model from localStorage or default to first available
   useEffect(() => {
     if (!initialModel) {
+      const allModels = Object.values(modelsByProvider).flat();
+      if (allModels.length === 0) return;
+
+      // Try to restore from localStorage
+      const savedModelId = localStorage.getItem("selected-chat-model");
+      if (savedModelId && allModels.some((m) => m.id === savedModelId)) {
+        setInitialModel(savedModelId);
+        return;
+      }
+
+      // Fall back to first available model
       const providers = Object.keys(modelsByProvider);
       if (providers.length > 0) {
         const firstProvider = providers[0];
@@ -201,6 +211,12 @@ export default function ChatPage() {
       }
     }
   }, [modelsByProvider, initialModel]);
+
+  // Save model to localStorage when changed
+  const handleInitialModelChange = useCallback((modelId: string) => {
+    setInitialModel(modelId);
+    localStorage.setItem("selected-chat-model", modelId);
+  }, []);
 
   // Derive provider from initial model for API key filtering
   const initialProvider = useMemo((): SupportedChatProvider | undefined => {
@@ -220,7 +236,7 @@ export default function ChatPage() {
     useChatApiKeys();
   const { data: features, isLoading: isLoadingFeatures } = useFeatures();
   const { data: organization } = useOrganization();
-  const { data: chatModels = [] } = useChatModelsQuery(conversationId);
+  const { data: chatModels = [] } = useChatModelsQuery();
   // Vertex AI Gemini mode doesn't require an API key (uses ADC)
   // vLLM/Ollama may not require an API key either
   const hasAnyApiKey =
@@ -304,28 +320,6 @@ export default function ChatPage() {
       );
     },
     [conversation, chatModels, updateConversationMutation],
-  );
-
-  // Handle provider change for existing conversation - switch to first model of new provider
-  const handleProviderChange = useCallback(
-    (provider: SupportedChatProvider) => {
-      const models = modelsByProvider[provider];
-      if (models && models.length > 0) {
-        handleModelChange(models[0].id);
-      }
-    },
-    [modelsByProvider, handleModelChange],
-  );
-
-  // Handle provider change for initial chat - switch to first model of new provider
-  const handleInitialProviderChange = useCallback(
-    (provider: SupportedChatProvider) => {
-      const models = modelsByProvider[provider];
-      if (models && models.length > 0) {
-        setInitialModel(models[0].id);
-      }
-    },
-    [modelsByProvider],
   );
 
   // Find the specific prompt for this conversation (if any)
@@ -481,17 +475,6 @@ export default function ChatPage() {
     openDialog,
   ]);
 
-  // Auto-focus textarea when status becomes ready (message sent or stream finished)
-  // Also focus when queued messages change (to handle auto-sent messages)
-  useEffect(() => {
-    if (status === "ready") {
-      // Use requestAnimationFrame for more reliable focusing
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
-    }
-  }, [status]);
-
   // Sync messages when conversation loads or changes
   useEffect(() => {
     if (!setMessages || !sendMessage) {
@@ -567,69 +550,6 @@ export default function ChatPage() {
     messages.length,
   ]);
 
-  const focusTextarea = useCallback(() => {
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
-  }, []);
-
-  const handleSubmit = useCallback(
-    (
-      // biome-ignore lint/suspicious/noExplicitAny: AI SDK PromptInput files type is dynamic
-      message: { text?: string; files?: any[] },
-      e: React.FormEvent<HTMLFormElement>,
-    ) => {
-      e.preventDefault();
-      if (!sendMessage) return;
-
-      const hasText = message.text?.trim();
-      const hasFiles = message.files && message.files.length > 0;
-
-      if (!hasText && !hasFiles) return;
-
-      // Build message parts: text first, then file attachments
-      const parts: Array<
-        | { type: "text"; text: string }
-        | { type: "file"; url: string; mediaType: string; filename?: string }
-      > = [];
-
-      if (hasText) {
-        parts.push({ type: "text", text: hasText });
-      }
-
-      if (hasFiles) {
-        for (const file of message.files ?? []) {
-          parts.push({
-            type: "file",
-            url: file.url,
-            mediaType: file.mediaType,
-            filename: file.filename,
-          });
-        }
-      }
-
-      // If a message is currently being generated, queue this message instead
-      if (status === "submitted" || status === "streaming") {
-        chatSession?.addQueuedMessage?.({
-          id: crypto.randomUUID(),
-          role: "user",
-          parts,
-        });
-        focusTextarea();
-        return;
-      }
-
-      // Otherwise, send immediately
-      sendMessage({
-        role: "user",
-        parts,
-      });
-
-      focusTextarea();
-    },
-    [sendMessage, status, chatSession, focusTextarea],
-  );
-
   // Merge database UUIDs from backend into local message state
   // This runs after streaming completes and backend query has fetched
   useEffect(() => {
@@ -677,17 +597,16 @@ export default function ChatPage() {
       return localMsg;
     });
 
-    setMessages(mergedMessages);
-  }, [conversation, conversationId, messages, setMessages, status]);
+    setMessages(mergedMessages as UIMessage[]);
+  }, [
+    conversationId,
+    conversation?.messages,
+    conversation?.id,
+    messages,
+    setMessages,
+    status,
+  ]);
 
-  const handleDeleteQueued = useCallback(
-    (id: string) => {
-      if (chatSession?.removeQueuedMessage) {
-        chatSession.removeQueuedMessage(id);
-      }
-    },
-    [chatSession],
-  );
   // Auto-focus textarea when status becomes ready (message sent or stream finished)
   // or when conversation loads (e.g., new chat created, hard refresh)
   useLayoutEffect(() => {
@@ -696,46 +615,51 @@ export default function ChatPage() {
     }
   }, [status, conversation?.id]);
 
-  const handleSendNow = useCallback(
-    (id: string) => {
-      if (
-        !chatSession?.queuedMessages ||
-        !sendMessage ||
-        !chatSession.removeMessagesUpTo
-      ) {
-        return;
+  const handleSubmit: PromptInputProps["onSubmit"] = (message, e) => {
+    e.preventDefault();
+    if (status === "submitted" || status === "streaming") {
+      stop?.();
+    }
+
+    const hasText = message.text?.trim();
+    const hasFiles = message.files && message.files.length > 0;
+
+    if (
+      !sendMessage ||
+      (!hasText && !hasFiles) ||
+      status === "submitted" ||
+      status === "streaming"
+    ) {
+      return;
+    }
+
+    // Build message parts: text first, then file attachments
+    const parts: Array<
+      | { type: "text"; text: string }
+      | { type: "file"; url: string; mediaType: string; filename?: string }
+    > = [];
+
+    if (hasText) {
+      parts.push({ type: "text", text: message.text as string });
+    }
+
+    // Add file parts
+    if (hasFiles) {
+      for (const file of message.files) {
+        parts.push({
+          type: "file",
+          url: file.url,
+          mediaType: file.mediaType,
+          filename: file.filename,
+        });
       }
+    }
 
-      // Find the message in the queue
-      const queued = chatSession.queuedMessages.find((msg) => msg.id === id);
-      if (!queued) {
-        return;
-      }
-
-      // Mark that we're manually sending to prevent auto-send from interfering
-      chatSession.setIsManuallySending?.(true);
-
-      // Stop the current stream if one is running - this cancels the ongoing response immediately
-      if (status === "streaming" || status === "submitted") {
-        stop?.();
-      }
-
-      // Remove all messages up to and including the selected one from the queue
-      // This keeps only messages that come after the selected one
-      chatSession.removeMessagesUpTo(id);
-
-      // Send the selected message immediately
-      sendMessage(queued);
-
-      // Reset the manual send flag after a brief delay so the status can settle
-      setTimeout(() => {
-        chatSession.setIsManuallySending?.(false);
-      }, 400);
-
-      focusTextarea();
-    },
-    [chatSession, sendMessage, status, stop, focusTextarea],
-  );
+    sendMessage?.({
+      role: "user",
+      parts,
+    });
+  };
 
   // Handle initial prompt change (when no conversation exists)
   const handleInitialPromptChange = useCallback(
@@ -1226,37 +1150,7 @@ export default function ChatPage() {
 
           {activeAgentId && (
             <div className="sticky bottom-0 bg-background border-t p-4">
-              <div className="max-w-3xl mx-auto space-y-3">
-                {currentProfileId && (
-                  <WithPermissions
-                    permissions={{ profile: ["read"] }}
-                    noPermissionHandle="tooltip"
-                  >
-                    {({ hasPermission }) => {
-                      return hasPermission ===
-                        undefined ? null : hasPermission ? (
-                        <McpToolsDisplay
-                          agentId={currentProfileId}
-                          className="text-xs text-muted-foreground"
-                        />
-                      ) : (
-                        <Badge variant="outline" className="text-xs my-2">
-                          Unable to show the list of tools
-                        </Badge>
-                      );
-                    }}
-                  </WithPermissions>
-                )}
-                {chatSession?.queuedMessages &&
-                  chatSession.queuedMessages.length > 0 && (
-                    <div className="mb-2">
-                      <QueuedMessagesList
-                        messages={chatSession.queuedMessages}
-                        onDelete={handleDeleteQueued}
-                        onSendNow={handleSendNow}
-                      />
-                    </div>
-                  )}
+              <div className="max-w-4xl mx-auto space-y-3">
                 <ArchestraPromptInput
                   onSubmit={
                     conversationId && conversation?.agent.id
@@ -1278,7 +1172,7 @@ export default function ChatPage() {
                   onModelChange={
                     conversationId && conversation?.agent.id
                       ? handleModelChange
-                      : setInitialModel
+                      : handleInitialModelChange
                   }
                   messageCount={
                     conversationId && conversation?.agent.id
@@ -1300,11 +1194,6 @@ export default function ChatPage() {
                     conversationId && conversation?.agent.id
                       ? currentProvider
                       : initialProvider
-                  }
-                  onProviderChange={
-                    conversationId && conversation?.agent.id
-                      ? handleProviderChange
-                      : handleInitialProviderChange
                   }
                   textareaRef={textareaRef}
                   onProfileChange={
@@ -1328,6 +1217,7 @@ export default function ChatPage() {
                       : initialPromptId
                   }
                   allowFileUploads={organization?.allowChatFileUploads ?? false}
+                  isModelsLoading={isModelsLoading}
                 />
                 <div className="text-center">
                   <Version inline />
