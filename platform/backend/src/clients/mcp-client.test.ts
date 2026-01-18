@@ -1020,6 +1020,49 @@ describe("McpClient", () => {
           isError: false,
         });
       });
+
+      test("does not modify tool name when no prefix matches (Identity Case)", async () => {
+        // Create tool with a name that doesn't follow the prefix convention
+        const tool = await ToolModel.createToolIfNotExists({
+          name: "standalone_tool_name",
+          description: "Tool without standard prefix",
+          parameters: {},
+          catalogId: localCatalogId,
+          mcpServerId: localMcpServerId,
+        });
+
+        await AgentToolModel.create(agentId, tool.id, {
+          executionSourceMcpServerId: localMcpServerId,
+        });
+
+        mockUsesStreamableHttp.mockResolvedValue(true);
+        mockGetHttpEndpointUrl.mockReturnValue("http://localhost:30123/mcp");
+
+        mockCallTool.mockResolvedValue({
+          content: [{ type: "text", text: "Identity works!" }],
+          isError: false,
+        });
+
+        const toolCall = {
+          id: "call_identity_test",
+          name: "standalone_tool_name",
+          arguments: {},
+        };
+
+        const result = await mcpClient.executeToolCall(toolCall, agentId);
+
+        // Verify the tool name was not mangled since no prefix matched
+        expect(mockCallTool).toHaveBeenCalledWith({
+          name: "standalone_tool_name",
+          arguments: {},
+        });
+
+        expect(result).toMatchObject({
+          id: "call_identity_test",
+          content: [{ type: "text", text: "Identity works!" }],
+          isError: false,
+        });
+      });
     });
   });
 });
