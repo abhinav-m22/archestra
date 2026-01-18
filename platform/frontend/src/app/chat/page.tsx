@@ -958,19 +958,6 @@ export default function ChatPage() {
                     Browser
                   </Button>
                 )}
-              </div>
-              <div className="flex-1 flex justify-end gap-2 items-center">
-                {hasPlaywrightMcp && isBrowserStreamingEnabled && (
-                  <Button
-                    variant={isBrowserPanelOpen ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setIsBrowserPanelOpen(!isBrowserPanelOpen)}
-                    className="text-xs"
-                  >
-                    <Globe className="h-3 w-3 mr-1" />
-                    Browser
-                  </Button>
-                )}
                 {!isArtifactOpen && (
                   <Button
                     variant="ghost"
