@@ -909,11 +909,7 @@ describe("ConversationModel", () => {
       selectedModel: "claude-3-haiku-20240307",
     });
 
-    const results = await ConversationModel.findAll(
-      user.id,
-      org.id,
-      "Python",
-    );
+    const results = await ConversationModel.findAll(user.id, org.id, "Python");
 
     expect(results).toHaveLength(1);
     expect(results[0].title).toBe("Python Tutorial");
@@ -965,11 +961,7 @@ describe("ConversationModel", () => {
       },
     });
 
-    const results = await ConversationModel.findAll(
-      user.id,
-      org.id,
-      "Python",
-    );
+    const results = await ConversationModel.findAll(user.id, org.id, "Python");
 
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe(conv2.id);
@@ -1007,11 +999,7 @@ describe("ConversationModel", () => {
       },
     });
 
-    const results = await ConversationModel.findAll(
-      user.id,
-      org.id,
-      "Python",
-    );
+    const results = await ConversationModel.findAll(user.id, org.id, "Python");
 
     expect(results).toHaveLength(1);
     expect(results[0].messages).toBeDefined();
@@ -1109,7 +1097,10 @@ describe("ConversationModel", () => {
     const user2 = await makeUser();
     const org1 = await makeOrganization();
     const org2 = await makeOrganization();
-    const agent = await makeAgent({ name: "Isolation Search Agent", teams: [] });
+    const agent = await makeAgent({
+      name: "Isolation Search Agent",
+      teams: [],
+    });
 
     const conv1 = await ConversationModel.create({
       userId: user1.id,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounce } from "@uidotdev/usehooks";
 import { isToday, isWithinInterval, isYesterday, subDays } from "date-fns";
 import { MessageSquare, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -12,7 +13,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { useDebounce } from "@/hooks/use-debounce";
 import { useConversations } from "@/lib/chat.query";
 
 /**
