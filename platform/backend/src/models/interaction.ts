@@ -806,18 +806,10 @@ class InteractionModel {
           lastInteractionRequest: sql<unknown>`(ARRAY_AGG(
             ${schema.interactionsTable.request}
             ORDER BY ${schema.interactionsTable.createdAt} DESC
-          ) FILTER (WHERE
-            ${schema.interactionsTable.request}::text NOT LIKE '%prompt suggestion generator%'
-            AND ${schema.interactionsTable.request}::text NOT LIKE '%Please write a 5-10 word title%'
-            AND LENGTH(${schema.interactionsTable.request}->'messages'->0->>'content') > 20
           ))[1]`,
           lastInteractionType: sql<string>`(ARRAY_AGG(
             ${schema.interactionsTable.type}
             ORDER BY ${schema.interactionsTable.createdAt} DESC
-          ) FILTER (WHERE
-            ${schema.interactionsTable.request}::text NOT LIKE '%prompt suggestion generator%'
-            AND ${schema.interactionsTable.request}::text NOT LIKE '%Please write a 5-10 word title%'
-            AND LENGTH(${schema.interactionsTable.request}->'messages'->0->>'content') > 20
           ))[1]`,
           // Get conversation title if sessionId matches a conversation (for Archestra Chat sessions)
           conversationTitle: max(schema.conversationsTable.title),
