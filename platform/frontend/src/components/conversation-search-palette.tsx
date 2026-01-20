@@ -2,9 +2,30 @@
 
 import { useDebounce } from "@uidotdev/usehooks";
 import { isToday, isWithinInterval, isYesterday, subDays } from "date-fns";
-import { MessageSquare, Pencil } from "lucide-react";
+import {
+  Bot,
+  Cable,
+  Home,
+  Layers,
+  MessageSquare,
+  MessagesSquare,
+  Package,
+  Pencil,
+  Settings,
+  Wrench,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,9 +33,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import { useIsAuthenticated } from "@/lib/auth.hook";
-import { useConversations } from "@/lib/chat.query";
+import { useConversations, useDeleteConversation } from "@/lib/chat.query";
 
 /**
  * Extracts a display title for a conversation.
@@ -106,7 +128,12 @@ export function ConversationSearchPalette({
 }: ConversationSearchPaletteProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedValue, setSelectedValue] = useState("");
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const isAuthenticated = useIsAuthenticated();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const deleteMutation = useDeleteConversation();
 
   // Debounce search query to reduce API calls while typing
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -136,6 +163,8 @@ export function ConversationSearchPalette({
   useEffect(() => {
     if (!open) {
       setSearchQuery("");
+      setSelectedValue("");
+      setConversationToDelete(null);
     }
   }, [open]);
 
@@ -144,10 +173,43 @@ export function ConversationSearchPalette({
     onOpenChange(false);
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     router.push("/chat");
     onOpenChange(false);
-  };
+  }, [router, onOpenChange]);
+
+  const handleDeleteConversation = useCallback(() => {
+    if (conversationToDelete) {
+      deleteMutation.mutate(conversationToDelete);
+      setConversationToDelete(null);
+    }
+  }, [conversationToDelete, deleteMutation]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + N for new chat
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+        e.preventDefault();
+        handleNewChat();
+        return;
+      }
+
+      // 'd' for delete - intercept before input when conversation is selected
+      if (e.key === "d" && selectedValue?.startsWith("conv-")) {
+        e.preventDefault();
+        e.stopPropagation();
+        const conversationId = selectedValue.substring(5);
+        setConversationToDelete(conversationId);
+      }
+    };
+
+    // Use capture phase to intercept before input element
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, [open, selectedValue, handleNewChat]);
 
   /** Generates a contextual preview snippet with search term context */
   const getPreviewText = (
@@ -234,7 +296,7 @@ export function ConversationSearchPalette({
     return (
       <CommandItem
         key={conv.id}
-        value={conv.id}
+        value={`conv-${conv.id}`}
         onSelect={() => handleSelectConversation(conv.id)}
         className="flex flex-col items-start gap-1.5 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm w-full"
       >
@@ -253,88 +315,212 @@ export function ConversationSearchPalette({
     );
   };
 
-  return (
-    <CommandDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Search conversations"
-      description="Search through your conversation history"
-      className="max-w-2xl"
-      shouldFilter={false}
-    >
-      <CommandInput
-        placeholder="Search chats..."
-        value={searchQuery}
-        onValueChange={setSearchQuery}
-      />
-      <CommandList className="max-h-[500px]">
-        {isLoading && !isSearching ? (
-          <div className="py-6 text-center text-sm text-muted-foreground">
-            Loading conversations...
-          </div>
-        ) : isSearchingAndFetching ? (
-          <SearchSkeleton />
-        ) : (
-          <>
-            {!searchQuery.trim() && (
-              <CommandGroup>
-                <CommandItem
-                  value="new-chat"
-                  onSelect={handleNewChat}
-                  className="flex items-center gap-2 px-3 py-3 cursor-pointer aria-selected:bg-accent"
-                >
-                  <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="font-medium">New chat</span>
-                </CommandItem>
-              </CommandGroup>
-            )}
+  // Product navigation items matching sidebar names
+  const navigationItems = [
+    { icon: MessageSquare, label: "Chats", value: "chats", keywords: "chat conversation", href: "/chat" },
+    { icon: Bot, label: "Agents", value: "agents", keywords: "agent bot ai", href: "/agents" },
+    { icon: Layers, label: "Profiles", value: "profiles", keywords: "profiles templates", href: "/profiles" },
+    { icon: MessagesSquare, label: "Logs", value: "logs", keywords: "logs llm proxy requests", href: "/logs/llm-proxy" },
+    { icon: Wrench, label: "Tool Policies", value: "tool-policies", keywords: "tools policies permissions", href: "/tools" },
+    { icon: Package, label: "MCP Registry", value: "mcp-registry", keywords: "mcp catalog registry servers", href: "/mcp-catalog/registry" },
+    { icon: Home, label: "Cost & Limits", value: "cost-limits", keywords: "cost dashboard limits budget", href: "/cost" },
+    { icon: Cable, label: "Connect", value: "connect", keywords: "connect integration api", href: "/connection" },
+    { icon: Settings, label: "Settings", value: "settings", keywords: "settings configuration preferences", href: "/settings" },
+  ];
 
-            {debouncedSearch.trim() ? (
-              conversations.length === 0 ? (
-                <CommandEmpty>No conversations found.</CommandEmpty>
-              ) : (
-                <CommandGroup heading="Search Results">
-                  {conversations.map((conv) => renderConversationItem(conv))}
-                </CommandGroup>
-              )
-            ) : groupedConversations ? (
-              <>
-                {groupedConversations.today.length > 0 && (
-                  <CommandGroup heading="Today">
-                    {groupedConversations.today.map((conv) =>
-                      renderConversationItem(conv),
-                    )}
+  return (
+    <>
+      <CommandDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Search conversations"
+        description="Search through your conversation history"
+        className="max-w-2xl"
+        shouldFilter={false}
+        value={selectedValue}
+        onValueChange={setSelectedValue}
+      >
+        <CommandInput
+          ref={inputRef}
+          placeholder="Search or navigate..."
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+        />
+        <CommandList className="max-h-[500px]">
+          {isLoading && !isSearching ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Loading conversations...
+            </div>
+          ) : isSearchingAndFetching ? (
+            <SearchSkeleton />
+          ) : (
+            <>
+              {!searchQuery.trim() && (
+                <>
+                  <CommandGroup>
+                    <CommandItem
+                      value="new-chat"
+                      onSelect={handleNewChat}
+                      className="flex items-center gap-2 px-3 py-3 cursor-pointer aria-selected:bg-accent"
+                    >
+                      <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="font-medium">New chat</span>
+                    </CommandItem>
                   </CommandGroup>
-                )}
-                {groupedConversations.yesterday.length > 0 && (
-                  <CommandGroup heading="Yesterday">
-                    {groupedConversations.yesterday.map((conv) =>
-                      renderConversationItem(conv),
-                    )}
+
+                  <CommandSeparator className="my-2" />
+
+                  <div className="px-2 pb-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-medium text-muted-foreground">Pages</span>
+                      <span className="text-xs text-muted-foreground">Jump to</span>
+                    </div>
+                  </div>
+                  <CommandGroup>
+                    {navigationItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <CommandItem
+                          key={item.value}
+                          value={`${item.value} ${item.keywords} ${item.label}`}
+                          onSelect={() => {
+                            router.push(item.href);
+                            onOpenChange(false);
+                          }}
+                          className="flex items-center gap-3 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm"
+                        >
+                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">{item.label}</span>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
-                )}
-                {groupedConversations.previous7Days.length > 0 && (
-                  <CommandGroup heading="Previous 7 Days">
-                    {groupedConversations.previous7Days.map((conv) =>
-                      renderConversationItem(conv),
-                    )}
+
+                  <CommandSeparator className="my-2" />
+
+                  <div className="px-2 pb-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-medium text-muted-foreground">Chats</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {debouncedSearch.trim() ? (
+                conversations.length === 0 ? (
+                  <CommandEmpty>No conversations found.</CommandEmpty>
+                ) : (
+                  <CommandGroup heading="Search Results">
+                    {conversations.map((conv) => renderConversationItem(conv))}
                   </CommandGroup>
-                )}
-                {groupedConversations.older.length > 0 && (
-                  <CommandGroup heading="Previous 30 Days">
-                    {groupedConversations.older.map((conv) =>
-                      renderConversationItem(conv),
-                    )}
-                  </CommandGroup>
-                )}
-                {conversations.length === 0 && (
-                  <CommandEmpty>No conversations yet.</CommandEmpty>
-                )}
-              </>
-            ) : null}
-          </>
-        )}
-      </CommandList>
-    </CommandDialog>
+                )
+              ) : groupedConversations ? (
+                <>
+                  {groupedConversations.today.length > 0 && (
+                    <CommandGroup heading="Today">
+                      {groupedConversations.today.map((conv) =>
+                        renderConversationItem(conv),
+                      )}
+                    </CommandGroup>
+                  )}
+                  {groupedConversations.yesterday.length > 0 && (
+                    <CommandGroup heading="Yesterday">
+                      {groupedConversations.yesterday.map((conv) =>
+                        renderConversationItem(conv),
+                      )}
+                    </CommandGroup>
+                  )}
+                  {groupedConversations.previous7Days.length > 0 && (
+                    <CommandGroup heading="Previous 7 Days">
+                      {groupedConversations.previous7Days.map((conv) =>
+                        renderConversationItem(conv),
+                      )}
+                    </CommandGroup>
+                  )}
+                  {groupedConversations.older.length > 0 && (
+                    <CommandGroup heading="Previous 30 Days">
+                      {groupedConversations.older.map((conv) =>
+                        renderConversationItem(conv),
+                      )}
+                    </CommandGroup>
+                  )}
+                  {conversations.length === 0 && (
+                    <CommandEmpty>No conversations yet.</CommandEmpty>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
+        </CommandList>
+
+        <div className="border-t bg-muted/30 px-3 py-2.5">
+          <div className="flex items-center justify-center gap-5 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5">
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  ⌘
+                </kbd>
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  K
+                </kbd>
+              </div>
+              <span className="text-xs text-muted-foreground">to search</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5">
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  ⌘
+                </kbd>
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  N
+                </kbd>
+              </div>
+              <span className="text-xs text-muted-foreground">new chat</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                D
+              </kbd>
+              <span className="text-xs text-muted-foreground">to delete</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5">
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  ⌃
+                </kbd>
+                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                  B
+                </kbd>
+              </div>
+              <span className="text-xs text-muted-foreground">sidebar</span>
+            </div>
+          </div>
+        </div>
+      </CommandDialog>
+
+      <AlertDialog
+        open={conversationToDelete !== null}
+        onOpenChange={(open) => !open && setConversationToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This conversation will be permanently deleted. This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConversation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
