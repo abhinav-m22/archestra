@@ -129,7 +129,9 @@ export function ConversationSearchPalette({
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
-  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [conversationToDelete, setConversationToDelete] = useState<
+    string | null
+  >(null);
   const isAuthenticated = useIsAuthenticated();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -208,7 +210,8 @@ export function ConversationSearchPalette({
 
     // Use capture phase to intercept before input element
     window.addEventListener("keydown", handleKeyDown, { capture: true });
-    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [open, selectedValue, handleNewChat]);
 
   /** Generates a contextual preview snippet with search term context */
@@ -317,15 +320,69 @@ export function ConversationSearchPalette({
 
   // Product navigation items matching sidebar names
   const navigationItems = [
-    { icon: MessageSquare, label: "Chats", value: "chats", keywords: "chat conversation", href: "/chat" },
-    { icon: Bot, label: "Agents", value: "agents", keywords: "agent bot ai", href: "/agents" },
-    { icon: Layers, label: "Profiles", value: "profiles", keywords: "profiles templates", href: "/profiles" },
-    { icon: MessagesSquare, label: "Logs", value: "logs", keywords: "logs llm proxy requests", href: "/logs/llm-proxy" },
-    { icon: Wrench, label: "Tool Policies", value: "tool-policies", keywords: "tools policies permissions", href: "/tools" },
-    { icon: Package, label: "MCP Registry", value: "mcp-registry", keywords: "mcp catalog registry servers", href: "/mcp-catalog/registry" },
-    { icon: Home, label: "Cost & Limits", value: "cost-limits", keywords: "cost dashboard limits budget", href: "/cost" },
-    { icon: Cable, label: "Connect", value: "connect", keywords: "connect integration api", href: "/connection" },
-    { icon: Settings, label: "Settings", value: "settings", keywords: "settings configuration preferences", href: "/settings" },
+    {
+      icon: MessageSquare,
+      label: "Chats",
+      value: "chats",
+      keywords: "chat conversation",
+      href: "/chat",
+    },
+    {
+      icon: Bot,
+      label: "Agents",
+      value: "agents",
+      keywords: "agent bot ai",
+      href: "/agents",
+    },
+    {
+      icon: Layers,
+      label: "Profiles",
+      value: "profiles",
+      keywords: "profiles templates",
+      href: "/profiles",
+    },
+    {
+      icon: MessagesSquare,
+      label: "Logs",
+      value: "logs",
+      keywords: "logs llm proxy requests",
+      href: "/logs/llm-proxy",
+    },
+    {
+      icon: Wrench,
+      label: "Tool Policies",
+      value: "tool-policies",
+      keywords: "tools policies permissions",
+      href: "/tools",
+    },
+    {
+      icon: Package,
+      label: "MCP Registry",
+      value: "mcp-registry",
+      keywords: "mcp catalog registry servers",
+      href: "/mcp-catalog/registry",
+    },
+    {
+      icon: Home,
+      label: "Cost & Limits",
+      value: "cost-limits",
+      keywords: "cost dashboard limits budget",
+      href: "/cost",
+    },
+    {
+      icon: Cable,
+      label: "Connect",
+      value: "connect",
+      keywords: "connect integration api",
+      href: "/connection",
+    },
+    {
+      icon: Settings,
+      label: "Settings",
+      value: "settings",
+      keywords: "settings configuration preferences",
+      href: "/settings",
+    },
   ];
 
   return (
@@ -372,8 +429,12 @@ export function ConversationSearchPalette({
 
                   <div className="px-2 pb-1.5">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-medium text-muted-foreground">Pages</span>
-                      <span className="text-xs text-muted-foreground">Jump to</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Pages
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Jump to
+                      </span>
                     </div>
                   </div>
                   <CommandGroup>
@@ -390,7 +451,9 @@ export function ConversationSearchPalette({
                           className="flex items-center gap-3 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm"
                         >
                           <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="text-sm font-medium">{item.label}</span>
+                          <span className="text-sm font-medium">
+                            {item.label}
+                          </span>
                         </CommandItem>
                       );
                     })}
@@ -400,7 +463,9 @@ export function ConversationSearchPalette({
 
                   <div className="px-2 pb-1.5">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-medium text-muted-foreground">Chats</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Chats
+                      </span>
                     </div>
                   </div>
                 </>
