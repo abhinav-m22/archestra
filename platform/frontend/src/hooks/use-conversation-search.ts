@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function useConversationSearch() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -22,6 +24,13 @@ export function useConversationSearch() {
         // isOpen in the dependency array.
         setIsOpen((prev) => !prev);
       }
+
+      // Alt + N: New Chat (avoids Cmd/Ctrl+N New Window conflict)
+      if (event.altKey && event.key === "n") {
+        event.preventDefault();
+        event.stopPropagation();
+        router.push("/chat");
+      }
     };
 
     window.addEventListener("open-conversation-search", handleOpenPalette);
@@ -31,7 +40,7 @@ export function useConversationSearch() {
       window.removeEventListener("open-conversation-search", handleOpenPalette);
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, []);
+  }, [router]);
 
   return {
     isOpen,

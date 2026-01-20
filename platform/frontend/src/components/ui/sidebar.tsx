@@ -106,7 +106,7 @@ function SidebarProvider({
 
         // Show hint toast
         toast.info("Sidebar toggled", {
-          description: `Press Ctrl+B again to ${!open ? "hide" : "show"} the sidebar`,
+          description: `Press Cmd/Ctrl+B again to ${!open ? "hide" : "show"} the sidebar`,
           duration: 2000,
         });
       }

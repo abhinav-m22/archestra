@@ -187,18 +187,11 @@ export function ConversationSearchPalette({
     }
   }, [conversationToDelete, deleteMutation]);
 
-  // Global keyboard shortcuts
+  // Keyboard shortcuts for search palette
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + N for new chat
-      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
-        e.preventDefault();
-        handleNewChat();
-        return;
-      }
-
       // 'd' for delete - intercept before input when conversation is selected
       if (e.key === "d" && selectedValue?.startsWith("conv-")) {
         e.preventDefault();
@@ -212,7 +205,7 @@ export function ConversationSearchPalette({
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () =>
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [open, selectedValue, handleNewChat]);
+  }, [open, selectedValue]);
 
   /** Generates a contextual preview snippet with search term context */
   const getPreviewText = (
@@ -518,46 +511,58 @@ export function ConversationSearchPalette({
           )}
         </CommandList>
 
-        <div className="border-t bg-muted/30 px-3 py-2.5">
-          <div className="flex items-center justify-center gap-5 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5">
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
-                  ⌘
+        <div className="border-t bg-muted/30 px-4 py-3">
+          <div className="flex items-center justify-center gap-6 flex-wrap text-xs">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Cmd
                 </kbd>
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                <span className="text-muted-foreground/40">/</span>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Ctrl
+                </kbd>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                   K
                 </kbd>
               </div>
-              <span className="text-xs text-muted-foreground">to search</span>
+              <span className="text-muted-foreground/70">Search</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5">
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
-                  ⌘
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Opt
                 </kbd>
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                <span className="text-muted-foreground/40">/</span>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Alt
+                </kbd>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                   N
                 </kbd>
               </div>
-              <span className="text-xs text-muted-foreground">new chat</span>
+              <span className="text-muted-foreground/70">New</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+            <div className="flex items-center gap-2">
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                 D
               </kbd>
-              <span className="text-xs text-muted-foreground">to delete</span>
+              <span className="text-muted-foreground/70">Delete</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5">
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
-                  ⌃
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Cmd
                 </kbd>
-                <kbd className="pointer-events-none inline-flex h-6 min-w-[24px] select-none items-center justify-center rounded border border-border bg-background px-1.5 font-mono text-[11px] font-medium text-muted-foreground shadow-[0_1px_0_0_rgba(0,0,0,0.08)]">
+                <span className="text-muted-foreground/40">/</span>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                  Ctrl
+                </kbd>
+                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                   B
                 </kbd>
               </div>
-              <span className="text-xs text-muted-foreground">sidebar</span>
+              <span className="text-muted-foreground/70">Sidebar</span>
             </div>
           </div>
         </div>
