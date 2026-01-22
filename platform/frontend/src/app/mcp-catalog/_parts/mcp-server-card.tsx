@@ -407,6 +407,7 @@ export function McpServerCard({
               </Tooltip>
             </TooltipProvider>
           )}
+        </span>
       </div>
       {mcpServersCount > 0 && (
         <Button
