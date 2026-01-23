@@ -28,7 +28,7 @@ export { default as interactionRoutes } from "./interaction";
 export { default as internalMcpCatalogRoutes } from "./internal-mcp-catalog";
 export { default as invitationRoutes } from "./invitation";
 export { default as limitsRoutes } from "./limits";
-export { legacyMcpGatewayRoutes, newMcpGatewayRoutes } from "./mcp-gateway";
+export { mcpGatewayRoutes } from "./mcp-gateway";
 export { default as mcpServerRoutes } from "./mcp-server";
 export { default as mcpServerInstallationRequestRoutes } from "./mcp-server-installation-requests";
 export { default as mcpToolCallRoutes } from "./mcp-tool-call";
@@ -37,8 +37,6 @@ export { default as optimizationRuleRoutes } from "./optimization-rule";
 export { default as organizationRoutes } from "./organization";
 export { default as organizationRoleRoutes } from "./organization-role";
 export { default as policyConfigSubagentRoutes } from "./policy-config-subagent";
-export { default as promptAgentRoutes } from "./prompt-agents";
-export { default as promptRoutes } from "./prompts";
 // Anthropic proxy routes - V1 (legacy) by default, V2 (unified handler) via env var
 export const anthropicProxyRoutes = config.llm.anthropic.useV2Routes
   ? anthropicProxyRoutesV2
