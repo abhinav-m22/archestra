@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.0.33](https://github.com/archestra-ai/archestra/compare/platform-v1.0.32...platform-v1.0.33) (2026-01-22)
+
+
+### Dependencies
+
+* bump streamdown from 1.6.11 to 2.0.1 in /platform ([#2292](https://github.com/archestra-ai/archestra/issues/2292)) ([b8c1e69](https://github.com/archestra-ai/archestra/commit/b8c1e69aa24bdb6ec86074c39500c0e037783942))
+
+
+### Miscellaneous Chores
+
+* **perf:** improve LLM proxy logs query performance ([#2296](https://github.com/archestra-ai/archestra/issues/2296)) ([bd5c2e9](https://github.com/archestra-ai/archestra/commit/bd5c2e90cc4868d1c419f5072fd7f455402c22c9))
+
+## [1.0.32](https://github.com/archestra-ai/archestra/compare/platform-v1.0.31...platform-v1.0.32) (2026-01-22)
+
+
+### Bug Fixes
+
+* address Gemini Vertex AI model fetching issue ([#2295](https://github.com/archestra-ai/archestra/issues/2295)) ([306ffd9](https://github.com/archestra-ai/archestra/commit/306ffd9e84e97802b995460eb09f1600d07902f8))
+
+## [1.0.31](https://github.com/archestra-ai/archestra/compare/platform-v1.0.30...platform-v1.0.31) (2026-01-22)
+
+
+### Miscellaneous Chores
+
+* replace in-memory cache usage with Postgres "cache" ([#2282](https://github.com/archestra-ai/archestra/issues/2282)) ([8f6588c](https://github.com/archestra-ai/archestra/commit/8f6588ca73a16f848b8a216ef364ce74b7eaec7d))
+
+## [1.0.30](https://github.com/archestra-ai/archestra/compare/platform-v1.0.29...platform-v1.0.30) (2026-01-22)
+
+
+### Features
+
+* add security modes for incoming email agent invocation ([#2270](https://github.com/archestra-ai/archestra/issues/2270)) ([48ea3be](https://github.com/archestra-ai/archestra/commit/48ea3beb8c7d6b16f05fcc8ab9ece0b14396b7a8))
+
+
+### Bug Fixes
+
+* **local development:** windows Tilt compatibility ([#2274](https://github.com/archestra-ai/archestra/issues/2274)) ([85c82dd](https://github.com/archestra-ai/archestra/commit/85c82dd40fc359c391cac18a2d2675a7474ba55a))
+* route websocket through next.js rewrite and use ARCHESTRA_API_EXTERNAL_BASE_URL on staging ([#2283](https://github.com/archestra-ai/archestra/issues/2283)) ([256f8d0](https://github.com/archestra-ai/archestra/commit/256f8d095c363c2d7f952ccad3a58813e5681e54))
+
 ## [1.0.29](https://github.com/archestra-ai/archestra/compare/platform-v1.0.28...platform-v1.0.29) (2026-01-21)
 
 
