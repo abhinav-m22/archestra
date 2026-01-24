@@ -9,13 +9,14 @@ import {
   Cable,
   DollarSign,
   Github,
-  Layers,
   LogIn,
   type LucideIcon,
   MessageCircle,
   MessagesSquare,
+  Network,
   Router,
   Settings,
+  Shield,
   Slack,
   Star,
   Wrench,
@@ -58,7 +59,7 @@ const getNavigationItems = (isAuthenticated: boolean): MenuItem[] => {
   }
   return [
     {
-      title: "Chats",
+      title: "Chat",
       url: "/chat",
       icon: MessageCircle,
       customIsActive: (pathname: string, searchParams: URLSearchParams) =>
@@ -70,9 +71,14 @@ const getNavigationItems = (isAuthenticated: boolean): MenuItem[] => {
       icon: Bot,
     },
     {
-      title: "Profiles",
-      url: "/profiles",
-      icon: Layers,
+      title: "MCP Gateways",
+      url: "/mcp-gateways",
+      icon: Shield,
+    },
+    {
+      title: "LLM Proxies",
+      url: "/llm-proxies",
+      icon: Network,
     },
     {
       title: "Logs",
