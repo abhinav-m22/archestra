@@ -3,7 +3,14 @@
 import type { archestraApiTypes } from "@shared";
 import { archestraApiSdk } from "@shared";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Bot, Loader2, Search, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Bot,
+  ExternalLink,
+  Loader2,
+  Search,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -15,6 +22,7 @@ import {
   AgentToolsEditor,
   type AgentToolsEditorRef,
 } from "@/components/agent-tools-editor";
+import { EmailNotConfiguredMessage } from "@/components/email-not-configured-message";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,11 +41,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateProfile,
   useInternalAgents,
+  useProfile,
   useUpdateProfile,
 } from "@/lib/agent.query";
 import {
@@ -47,6 +63,7 @@ import {
 import { useHasPermissions } from "@/lib/auth.query";
 import { useChatProfileMcpTools } from "@/lib/chat.query";
 import { useChatOpsStatus } from "@/lib/chatops.query";
+import { useFeatures } from "@/lib/features.query";
 import { useInternalMcpCatalog } from "@/lib/internal-mcp-catalog.query";
 
 type Agent = archestraApiTypes.GetAllAgentsResponses["200"][number];
@@ -233,6 +250,20 @@ function SubagentsEditor({
           +{hiddenCount} more
         </Button>
       )}
+      {/* Show "Create a New Agent" when there's no "+N more" button */}
+      {(shouldShowAll || hiddenCount <= 0) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 px-3 gap-1.5 text-xs border-dashed"
+          asChild
+        >
+          <a href="/agents?create=true" target="_blank" rel="noopener">
+            <span className="font-medium">Create a New Agent</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </Button>
+      )}
     </>
   );
 }
@@ -316,6 +347,10 @@ export function AgentDialog({
   const syncDelegations = useSyncAgentDelegations();
   const { data: currentDelegations = [] } = useAgentDelegations(agent?.id);
   const { data: chatopsProviders = [] } = useChatOpsStatus();
+  const { data: features } = useFeatures();
+
+  // Fetch fresh agent data when dialog opens
+  const { data: freshAgent, refetch: refetchAgent } = useProfile(agent?.id);
   const { data: teams } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
@@ -338,6 +373,12 @@ export function AgentDialog({
   const [labels, setLabels] = useState<ProfileLabel[]>([]);
   const [considerContextUntrusted, setConsiderContextUntrusted] =
     useState(false);
+  const [incomingEmailEnabled, setIncomingEmailEnabled] = useState(false);
+  const [incomingEmailSecurityMode, setIncomingEmailSecurityMode] = useState<
+    "private" | "internal" | "public"
+  >("private");
+  const [incomingEmailAllowedDomain, setIncomingEmailAllowedDomain] =
+    useState("");
   const [subagentsSearch, setSubagentsSearch] = useState("");
   const [subagentsSearchOpen, setSubagentsSearchOpen] = useState(false);
   const [subagentsShowAll, setSubagentsShowAll] = useState(false);
@@ -357,27 +398,45 @@ export function AgentDialog({
   // Reset form when dialog opens/closes or agent changes
   useEffect(() => {
     if (open) {
-      if (agent) {
+      // Refetch agent data when dialog opens to ensure fresh data
+      if (agent?.id) {
+        refetchAgent();
+      }
+
+      // Use fresh agent data if available, otherwise fall back to prop
+      const agentData = freshAgent || agent;
+
+      if (agentData) {
         // Edit mode
-        setName(agent.name);
-        setUserPrompt(agent.userPrompt || "");
-        setSystemPrompt(agent.systemPrompt || "");
+        setName(agentData.name);
+        setUserPrompt(agentData.userPrompt || "");
+        setSystemPrompt(agentData.systemPrompt || "");
         // Reset delegation targets - will be populated by the next useEffect when data loads
         setSelectedDelegationTargetIds([]);
         // Parse allowedChatops from agent
-        const chatopsValue = agent.allowedChatops;
+        const chatopsValue = agentData.allowedChatops;
         if (Array.isArray(chatopsValue)) {
           setAllowedChatops(chatopsValue as string[]);
         } else {
           setAllowedChatops([]);
         }
         // Teams and labels
-        const agentTeams = agent.teams as unknown as
+        const agentTeams = agentData.teams as unknown as
           | Array<{ id: string; name: string }>
           | undefined;
         setAssignedTeamIds(agentTeams?.map((t) => t.id) || []);
-        setLabels(agent.labels || []);
-        setConsiderContextUntrusted(agent.considerContextUntrusted || false);
+        setLabels(agentData.labels || []);
+        setConsiderContextUntrusted(
+          agentData.considerContextUntrusted || false,
+        );
+        // Email invocation settings
+        setIncomingEmailEnabled(agentData.incomingEmailEnabled || false);
+        setIncomingEmailSecurityMode(
+          agentData.incomingEmailSecurityMode || "private",
+        );
+        setIncomingEmailAllowedDomain(
+          agentData.incomingEmailAllowedDomain || "",
+        );
       } else {
         // Create mode - reset all fields
         setName("");
@@ -388,6 +447,9 @@ export function AgentDialog({
         setAssignedTeamIds([]);
         setLabels([]);
         setConsiderContextUntrusted(false);
+        setIncomingEmailEnabled(false);
+        setIncomingEmailSecurityMode("private");
+        setIncomingEmailAllowedDomain("");
       }
       // Reset search and counts when dialog opens
       setSubagentsSearch("");
@@ -398,7 +460,7 @@ export function AgentDialog({
       setToolsShowAll(false);
       setSelectedToolsCount(0);
     }
-  }, [open, agent]);
+  }, [open, agent, freshAgent, refetchAgent]);
 
   // Sync selectedDelegationTargetIds with currentDelegations when data loads
   const currentDelegationIds = currentDelegations.map((a) => a.id).join(",");
@@ -433,6 +495,26 @@ export function AgentDialog({
       return;
     }
 
+    // Validate email domain when security mode is "internal"
+    if (
+      isInternalAgent &&
+      incomingEmailEnabled &&
+      incomingEmailSecurityMode === "internal"
+    ) {
+      const trimmedDomain = incomingEmailAllowedDomain.trim();
+      if (!trimmedDomain) {
+        toast.error("Allowed domain is required for internal security mode");
+        return;
+      }
+      // Basic domain format validation (no @, valid characters)
+      const domainRegex =
+        /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
+      if (!domainRegex.test(trimmedDomain)) {
+        toast.error("Please enter a valid domain (e.g., example.com)");
+        return;
+      }
+    }
+
     // Save any unsaved label before submitting
     const updatedLabels = agentLabelsRef.current?.saveUnsavedLabel() || labels;
 
@@ -443,6 +525,17 @@ export function AgentDialog({
       if (agent) {
         await agentToolsEditorRef.current?.saveChanges();
       }
+
+      // Build email settings for internal agents (always save, backend controls enforcement)
+      const emailSettings = isInternalAgent
+        ? {
+            incomingEmailEnabled,
+            incomingEmailSecurityMode,
+            ...(incomingEmailSecurityMode === "internal" && {
+              incomingEmailAllowedDomain: incomingEmailAllowedDomain.trim(),
+            }),
+          }
+        : {};
 
       if (agent) {
         // Update existing agent
@@ -459,6 +552,7 @@ export function AgentDialog({
             teams: assignedTeamIds,
             labels: updatedLabels,
             ...(showSecurity && { considerContextUntrusted }),
+            ...emailSettings,
           },
         });
         savedAgentId = updated?.id ?? agent.id;
@@ -476,6 +570,7 @@ export function AgentDialog({
           teams: assignedTeamIds,
           labels: updatedLabels,
           ...(showSecurity && { considerContextUntrusted }),
+          ...emailSettings,
         });
         savedAgentId = created?.id ?? "";
 
@@ -520,6 +615,9 @@ export function AgentDialog({
     assignedTeamIds,
     labels,
     considerContextUntrusted,
+    incomingEmailEnabled,
+    incomingEmailSecurityMode,
+    incomingEmailAllowedDomain,
     agentType,
     agent,
     isInternalAgent,
@@ -717,43 +815,167 @@ export function AgentDialog({
             )}
 
             {/* Agent Trigger Rules (Agent only) */}
-            {isInternalAgent && configuredChatopsProviders.length > 0 && (
+            {isInternalAgent && (
               <div className="space-y-2">
                 <Label>Agent Trigger Rules</Label>
-                <div className="space-y-3 pt-1">
-                  {configuredChatopsProviders.map((provider) => (
-                    <div
-                      key={provider.id}
-                      className="flex items-center justify-between"
+                {configuredChatopsProviders.length > 0 ? (
+                  <div className="space-y-3 pt-1">
+                    {configuredChatopsProviders.map((provider) => (
+                      <div
+                        key={provider.id}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="space-y-0.5">
+                          <label
+                            htmlFor={`chatops-${provider.id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {provider.displayName}
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            Allow this agent to be triggered via{" "}
+                            {provider.displayName}
+                          </p>
+                        </div>
+                        <Switch
+                          id={`chatops-${provider.id}`}
+                          checked={allowedChatops.includes(provider.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setAllowedChatops([
+                                ...allowedChatops,
+                                provider.id,
+                              ]);
+                            } else {
+                              setAllowedChatops(
+                                allowedChatops.filter(
+                                  (id) => id !== provider.id,
+                                ),
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No integrations configured. You can integrate with{" "}
+                    <a
+                      href="https://archestra.ai/docs/platform-agents#chatops-microsoft-teams"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline hover:no-underline"
                     >
+                      Microsoft Teams
+                    </a>{" "}
+                    to trigger agents from chat messages.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Email Invocation (Agent only) */}
+            {isInternalAgent && (
+              <div className="space-y-2">
+                <Label>Email Invocation</Label>
+                {features?.incomingEmail?.enabled ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label
-                          htmlFor={`chatops-${provider.id}`}
+                          htmlFor="incoming-email-enabled"
                           className="text-sm cursor-pointer"
                         >
-                          {provider.displayName}
+                          Enable email invocation
                         </label>
                         <p className="text-xs text-muted-foreground">
-                          Allow this agent to be triggered via{" "}
-                          {provider.displayName}
+                          Allow this agent to be triggered via email
                         </p>
                       </div>
                       <Switch
-                        id={`chatops-${provider.id}`}
-                        checked={allowedChatops.includes(provider.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setAllowedChatops([...allowedChatops, provider.id]);
-                          } else {
-                            setAllowedChatops(
-                              allowedChatops.filter((id) => id !== provider.id),
-                            );
-                          }
-                        }}
+                        id="incoming-email-enabled"
+                        checked={incomingEmailEnabled}
+                        onCheckedChange={setIncomingEmailEnabled}
                       />
                     </div>
-                  ))}
-                </div>
+
+                    {incomingEmailEnabled && (
+                      <>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="incoming-email-security-mode"
+                            className="text-sm"
+                          >
+                            Security mode
+                          </Label>
+                          <Select
+                            value={incomingEmailSecurityMode}
+                            onValueChange={(
+                              value: "private" | "internal" | "public",
+                            ) => setIncomingEmailSecurityMode(value)}
+                          >
+                            <SelectTrigger id="incoming-email-security-mode">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="private">
+                                <div className="flex flex-col items-start">
+                                  <span>Private</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Only registered users with access
+                                  </span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="internal">
+                                <div className="flex flex-col items-start">
+                                  <span>Internal</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Only emails from allowed domain
+                                  </span>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="public">
+                                <div className="flex flex-col items-start">
+                                  <span>Public</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Any email (use with caution)
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {incomingEmailSecurityMode === "internal" && (
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="incoming-email-allowed-domain"
+                              className="text-sm"
+                            >
+                              Allowed domain
+                            </Label>
+                            <Input
+                              id="incoming-email-allowed-domain"
+                              placeholder="company.com"
+                              value={incomingEmailAllowedDomain}
+                              onChange={(e) =>
+                                setIncomingEmailAllowedDomain(e.target.value)
+                              }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Only emails from @
+                              {incomingEmailAllowedDomain || "your-domain.com"}{" "}
+                              will be processed
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <EmailNotConfiguredMessage />
+                )}
               </div>
             )}
 
