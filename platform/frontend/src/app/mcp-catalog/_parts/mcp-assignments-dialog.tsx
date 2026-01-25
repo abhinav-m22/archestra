@@ -280,16 +280,24 @@ export function McpAssignmentsDialog({
         mcp.push(profile);
       }
     }
-    // Sort each group: assigned first, unassigned last
+    // Sort each group: Full assignments first, then partial, then none
     const sortByAssignments = (a: Profile, b: Profile) => {
       const aCount = assignmentsByProfile.get(a.id)?.tools.length ?? 0;
       const bCount = assignmentsByProfile.get(b.id)?.tools.length ?? 0;
+      const totalTools = allTools.length;
+
+      const aIsFull = aCount === totalTools && totalTools > 0;
+      const bIsFull = bCount === totalTools && totalTools > 0;
+
+      if (aIsFull && !bIsFull) return -1;
+      if (!aIsFull && bIsFull) return 1;
+
       return bCount - aCount;
     };
     mcp.sort(sortByAssignments);
     agent.sort(sortByAssignments);
     return { mcpProfiles: mcp, agents: agent };
-  }, [allProfiles, assignmentsByProfile]);
+  }, [allProfiles, assignmentsByProfile, allTools.length]);
 
   // Filter profiles by search
   const filteredMcpProfiles = useMemo(() => {
@@ -555,7 +563,9 @@ function ProfileAssignmentPill({
 
   const toolCount = selectedToolIds.size;
   const totalTools = allTools.length;
-  const hasNoAssignments = toolCount === 0;
+  const isFull = toolCount === totalTools && totalTools > 0;
+  const isPartial = toolCount > 0 && toolCount < totalTools;
+  const isEmpty = toolCount === 0;
   const showCredentialSelector = !isBuiltin && mcpServers.length > 0;
 
   return (
@@ -565,11 +575,23 @@ function ProfileAssignmentPill({
           variant="outline"
           size="sm"
           className={cn(
-            "h-8 px-3 gap-1.5 text-xs",
-            hasNoAssignments && "border-dashed",
-            hasChanges && "border-primary",
+            "h-8 px-3 gap-2 text-xs flex items-center transition-colors",
+            isFull &&
+              "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400",
+            isPartial &&
+              "bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400",
+            isEmpty && "border-dashed text-muted-foreground hover:bg-muted/50",
+            hasChanges && "ring-1 ring-primary/50 border-primary",
           )}
         >
+          <div
+            className={cn(
+              "w-1.5 h-1.5 rounded-full shrink-0",
+              isFull && "bg-emerald-500",
+              isPartial && "bg-blue-500",
+              isEmpty && "bg-muted-foreground/30",
+            )}
+          />
           <span className="font-medium">{profile.name}</span>
           <span className="text-muted-foreground">
             ({toolCount}/{totalTools})
@@ -608,7 +630,7 @@ function ProfileAssignmentPill({
               catalogId={catalogId}
               value={credentialId}
               onValueChange={handleCredentialChange}
-              shouldSetDefaultValue={hasNoAssignments && !pendingChanges}
+              shouldSetDefaultValue={isEmpty && !pendingChanges}
             />
           </div>
         )}
