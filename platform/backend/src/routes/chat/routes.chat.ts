@@ -89,6 +89,8 @@ async function getSmartDefaultModel(
             return { model: "gemini-2.5-pro", provider: "gemini" };
           case "openai":
             return { model: "gpt-4o", provider: "openai" };
+          case "cohere":
+            return { model: "command-r-08-2024", provider: "cohere" };
         }
       }
     }
@@ -103,6 +105,9 @@ async function getSmartDefaultModel(
   }
   if (config.chat.gemini.apiKey) {
     return { model: "gemini-2.5-pro", provider: "gemini" };
+  }
+  if (config.chat.cohere?.apiKey) {
+    return { model: "command-r-08-2024", provider: "cohere" };
   }
 
   // Check if Vertex AI is enabled - use Gemini without API key
@@ -286,6 +291,25 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       // Only include system property if we have actual content
       if (systemPrompt) {
         streamTextConfig.system = systemPrompt;
+      }
+
+      // For Gemini image generation models, enable image output via responseModalities
+      // Known image-capable model patterns:
+      // - gemini-2.0-flash-exp-image-generation
+      // - gemini-2.5-flash-preview-native-audio-dialog (supports image output)
+      // - Any model with "image-generation" in the name
+      const modelLower = conversation.selectedModel.toLowerCase();
+      const isGeminiImageModel =
+        provider === "gemini" &&
+        (modelLower.includes("image-generation") ||
+          modelLower.includes("native-audio-dialog") ||
+          modelLower === "gemini-2.5-flash-image");
+      if (isGeminiImageModel) {
+        streamTextConfig.providerOptions = {
+          google: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        };
       }
 
       const result = streamText(streamTextConfig);
