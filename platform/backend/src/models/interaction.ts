@@ -1102,9 +1102,46 @@ class InteractionModel {
           !requestStr.includes("prompt suggestion generator") &&
           !requestStr.includes("Please write a 5-10 word title")
         ) {
-          // Identify the last interaction as "main" among non-filtered types.
-          // This no longer requires content length > 20.
-          lastMainInteraction = interaction;
+          // Support OpenAI/Anthropic and Gemini formats
+          const request = interaction.request as {
+            messages?: Array<{ content?: string | Array<{ text?: string }> }>;
+            contents?: Array<{
+              role?: string;
+              parts?: Array<{ text?: string }>;
+            }>;
+          };
+
+          let contentText = "";
+
+          // OpenAI / Anthropic format
+          const firstMessage = request?.messages?.[0]?.content;
+          if (firstMessage) {
+            contentText =
+              typeof firstMessage === "string"
+                ? firstMessage
+                : Array.isArray(firstMessage)
+                  ? firstMessage
+                      .map((c) => (typeof c === "string" ? c : (c.text ?? "")))
+                      .join(" ")
+                  : "";
+          }
+
+          // Gemini format
+          if (!contentText && request?.contents) {
+            const userContent = request.contents.find(
+              (c) => c.role === "user" || !c.role,
+            );
+            if (userContent?.parts) {
+              contentText = userContent.parts
+                .map((p) => p.text ?? "")
+                .filter(Boolean)
+                .join(" ");
+            }
+          }
+
+          if (contentText.length > 0 || contentText.length === 0) {
+            lastMainInteraction = interaction;
+          }
         }
 
         // Early exit if we found both (undefined = not yet searched for title)
