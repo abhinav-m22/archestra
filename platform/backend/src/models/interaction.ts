@@ -1102,9 +1102,11 @@ class InteractionModel {
           !requestStr.includes("prompt suggestion generator") &&
           !requestStr.includes("Please write a 5-10 word title")
         ) {
-          // Support OpenAI/Anthropic and Gemini formats
+          // Check message content length - support both OpenAI/Anthropic and Gemini formats
           const request = interaction.request as {
+            // OpenAI/Anthropic format
             messages?: Array<{ content?: string | Array<{ text?: string }> }>;
+            // Gemini format
             contents?: Array<{
               role?: string;
               parts?: Array<{ text?: string }>;
@@ -1113,7 +1115,7 @@ class InteractionModel {
 
           let contentText = "";
 
-          // OpenAI / Anthropic format
+          // Try OpenAI/Anthropic format first (messages[].content)
           const firstMessage = request?.messages?.[0]?.content;
           if (firstMessage) {
             contentText =
@@ -1126,7 +1128,7 @@ class InteractionModel {
                   : "";
           }
 
-          // Gemini format
+          // Try Gemini format (contents[].parts[].text)
           if (!contentText && request?.contents) {
             const userContent = request.contents.find(
               (c) => c.role === "user" || !c.role,
