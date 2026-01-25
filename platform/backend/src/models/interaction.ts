@@ -1102,23 +1102,9 @@ class InteractionModel {
           !requestStr.includes("prompt suggestion generator") &&
           !requestStr.includes("Please write a 5-10 word title")
         ) {
-          // Check message content length
-          const request = interaction.request as {
-            messages?: Array<{ content?: string | Array<{ text?: string }> }>;
-          };
-          const firstMessage = request?.messages?.[0]?.content;
-          const contentText =
-            typeof firstMessage === "string"
-              ? firstMessage
-              : Array.isArray(firstMessage)
-                ? firstMessage
-                    .map((c) => (typeof c === "string" ? c : (c.text ?? "")))
-                    .join(" ")
-                : "";
-
-          if (contentText.length > 20) {
-            lastMainInteraction = interaction;
-          }
+          // Identify the last interaction as "main" among non-filtered types.
+          // This no longer requires content length > 20.
+          lastMainInteraction = interaction;
         }
 
         // Early exit if we found both (undefined = not yet searched for title)

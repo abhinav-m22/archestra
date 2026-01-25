@@ -1870,20 +1870,21 @@ describe("InteractionModel", () => {
       expect(sessions.data[0].claudeCodeTitle).toBeNull();
     });
 
-    test("returns null for lastInteractionRequest when all messages are too short", async ({
+    test("returns lastInteractionRequest even when all messages are short", async ({
       makeAdmin,
     }) => {
       const admin = await makeAdmin();
       const agent = await AgentModel.create({ name: "Agent", teams: [] });
 
-      // Short utility message (< 20 chars)
+      // Short message (< 20 chars)
+      const request = {
+        model: "gpt-4",
+        messages: [{ role: "user", content: "hi" }],
+      };
       await InteractionModel.create({
         profileId: agent.id,
         sessionId: "short-session",
-        request: {
-          model: "gpt-4",
-          messages: [{ role: "user", content: "hi" }],
-        },
+        request,
         response: {
           id: "r1",
           object: "chat.completion",
@@ -1902,7 +1903,7 @@ describe("InteractionModel", () => {
       );
 
       expect(sessions.data).toHaveLength(1);
-      expect(sessions.data[0].lastInteractionRequest).toBeNull();
+      expect(sessions.data[0].lastInteractionRequest).toEqual(request);
     });
 
     test("handles single interactions without sessionId (null session)", async ({
@@ -2116,6 +2117,51 @@ describe("InteractionModel", () => {
 
       expect(userIds).toHaveLength(1);
       expect(userIds[0].name).toBe("Other User");
+    });
+  });
+
+  describe("getSessions Gemini support", () => {
+    test("returns lastInteractionRequest for Gemini session (contents-based)", async ({
+      makeAdmin,
+    }) => {
+      const admin = await makeAdmin();
+      const agent = await AgentModel.create({
+        name: "Gemini Agent",
+        teams: [],
+      });
+
+      await InteractionModel.create({
+        profileId: agent.id,
+        sessionId: "gemini-session",
+        request: {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: "Hello Gemini, this is a contents-based request" },
+              ],
+            },
+          ],
+        },
+        response: {
+          modelVersion: "gemini-1.5-pro",
+        },
+        type: "gemini:generateContent",
+      });
+
+      const sessions = await InteractionModel.getSessions(
+        { limit: 100, offset: 0 },
+        admin.id,
+        true,
+        { sessionId: "gemini-session" },
+      );
+
+      expect(sessions.data).toHaveLength(1);
+      expect(sessions.data[0].lastInteractionRequest).not.toBeNull();
+      const lastRequest = sessions.data[0].lastInteractionRequest as {
+        contents: { parts: { text: string }[] }[];
+      };
+      expect(lastRequest.contents[0].parts[0].text).toContain("Hello Gemini");
     });
   });
 });
