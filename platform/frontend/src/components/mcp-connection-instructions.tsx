@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CodeText } from "@/components/code-text";
+import { ConnectionBaseUrlSelect } from "@/components/connection-base-url-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -46,7 +47,7 @@ import {
 import { useTokens } from "@/lib/team-token.query";
 import { useUserToken } from "@/lib/user-token.query";
 
-const { internalProxyUrl } = config.api;
+const { externalProxyUrls, internalProxyUrl } = config.api;
 
 interface McpConnectionInstructionsProps {
   agentId: string;
@@ -73,6 +74,9 @@ export function McpConnectionInstructions({
   const [isCopyingConfig, setIsCopyingConfig] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string>(agentId);
+  const [connectionUrl, setConnectionUrl] = useState<string>(
+    externalProxyUrls.length >= 1 ? externalProxyUrls[0] : internalProxyUrl,
+  );
 
   // Fetch tokens filtered by the selected profile's teams
   const { data: tokensData } = useTokens({ profileId: selectedProfileId });
@@ -201,8 +205,7 @@ export function McpConnectionInstructions({
     [mcpServers],
   );
 
-  // Use the new URL format with selected profile ID
-  const mcpUrl = `${internalProxyUrl}/mcp/${selectedProfileId}`;
+  const mcpUrl = `${connectionUrl}/mcp/${selectedProfileId}`;
 
   // Default to personal token if available, otherwise org token, then first token
   const orgToken = tokens?.find((t) => t.isOrganizationToken);
@@ -557,6 +560,12 @@ export function McpConnectionInstructions({
         </Select>
       </div>
 
+      <ConnectionBaseUrlSelect
+        value={connectionUrl}
+        onChange={setConnectionUrl}
+        idPrefix="mcp"
+      />
+
       <div className="space-y-3">
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
@@ -819,11 +828,11 @@ function ReadOnlySubagentPill({ agent }: ReadOnlySubagentPillProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 gap-1.5 text-xs"
+          className="h-8 px-3 gap-1.5 text-xs max-w-[200px]"
         >
-          <span className="h-2 w-2 rounded-full bg-green-500" />
-          <Bot className="h-3 w-3" />
-          <span className="font-medium">{agent.name}</span>
+          <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+          <Bot className="h-3 w-3 shrink-0" />
+          <span className="font-medium truncate">{agent.name}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -834,8 +843,8 @@ function ReadOnlySubagentPill({ agent }: ReadOnlySubagentPillProps) {
         avoidCollisions
       >
         <div className="p-4 border-b flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <h4 className="font-semibold">{agent.name}</h4>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold truncate">{agent.name}</h4>
             {agent.systemPrompt && (
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                 {agent.systemPrompt}
