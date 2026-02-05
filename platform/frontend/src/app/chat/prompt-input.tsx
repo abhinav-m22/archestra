@@ -130,7 +130,7 @@ const PromptInputContent = ({
 
   const storageKey = conversationId
     ? `archestra_chat_draft_${conversationId}`
-    : `archestra_chat_draft_new_${promptId || agentId || "default"}`;
+    : `archestra_chat_draft_new_${agentId}`;
 
   const isRestored = useRef(false);
 
