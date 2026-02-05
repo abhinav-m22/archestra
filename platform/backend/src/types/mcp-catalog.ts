@@ -118,6 +118,9 @@ export type InternalMcpCatalogServerType = z.infer<
   typeof InternalMcpCatalogServerTypeSchema
 >;
 
+// Export LocalConfig type for reuse in database schema
+export type LocalConfig = z.infer<typeof LocalConfigSelectSchema>;
+
 export type InternalMcpCatalog = z.infer<typeof SelectInternalMcpCatalogSchema>;
 export type InsertInternalMcpCatalog = z.infer<
   typeof InsertInternalMcpCatalogSchema

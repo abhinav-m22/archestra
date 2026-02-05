@@ -1,6 +1,13 @@
-import { type ChatErrorResponse, RouteId, SupportedProviders } from "@shared";
+import {
+  type ChatErrorResponse,
+  RouteId,
+  SupportedProviders,
+  type TokenUsage,
+} from "@shared";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   generateText,
   stepCountIs,
   streamText,
@@ -20,6 +27,7 @@ import {
   resolveProviderApiKey,
 } from "@/clients/llm-client";
 import config from "@/config";
+import { browserStreamFeature } from "@/features/browser-stream/services/browser-stream.feature";
 import { extractAndIngestDocuments } from "@/knowledge-graph/chat-document-extractor";
 import logger from "@/logging";
 import {
@@ -27,12 +35,14 @@ import {
   ChatApiKeyModel,
   ConversationEnabledToolModel,
   ConversationModel,
+  InternalMcpCatalogModel,
+  McpServerModel,
   MessageModel,
   TeamModel,
+  ToolModel,
 } from "@/models";
 import { getExternalAgentId } from "@/routes/proxy/utils/external-agent-id";
 import { getSecretValueForLlmProviderApiKey } from "@/secrets-manager";
-import { browserStreamFeature } from "@/services/browser-stream-feature";
 import {
   ApiError,
   constructResponseSchema,
@@ -313,118 +323,152 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         };
       }
 
-      const result = streamText(streamTextConfig);
-
-      // Convert to UI message stream response (Response object)
-      const response = result.toUIMessageStreamResponse({
+      // Create stream with token usage data support
+      const response = createUIMessageStreamResponse({
         headers: {
           // Prevent compression middleware from buffering the stream
           // See: https://ai-sdk.dev/docs/troubleshooting/streaming-not-working-when-proxied
           "Content-Encoding": "none",
         },
-        originalMessages: messages as UIMessage[],
-        onError: (error) => {
-          logger.error(
-            { error, conversationId, agentId: conversation.agentId },
-            "Chat stream error occurred",
-          );
+        stream: createUIMessageStream({
+          execute: async ({ writer }) => {
+            const result = streamText(streamTextConfig);
 
-          // Map provider error to user-friendly ChatErrorResponse
-          const mappedError: ChatErrorResponse = mapProviderError(
-            error,
-            provider,
-          );
+            // Merge the stream text result into the UI message stream
+            writer.merge(
+              result.toUIMessageStream({
+                originalMessages: messages as UIMessage[],
+                onError: (error) => {
+                  logger.error(
+                    { error, conversationId, agentId: conversation.agentId },
+                    "Chat stream error occurred",
+                  );
 
-          logger.info(
-            {
-              mappedError,
-              originalErrorType:
-                error instanceof Error ? error.name : typeof error,
-              willBeSentToFrontend: true,
-            },
-            "Returning mapped error to frontend via stream",
-          );
+                  // Map provider error to user-friendly ChatErrorResponse
+                  const mappedError: ChatErrorResponse = mapProviderError(
+                    error,
+                    provider,
+                  );
 
-          // mapProviderError safely serializes raw errors, but add defensive try-catch
-          try {
-            return JSON.stringify(mappedError);
-          } catch (stringifyError) {
-            logger.error(
-              { stringifyError, errorCode: mappedError.code },
-              "Failed to stringify mapped error, returning minimal error",
+                  logger.info(
+                    {
+                      mappedError,
+                      originalErrorType:
+                        error instanceof Error ? error.name : typeof error,
+                      willBeSentToFrontend: true,
+                    },
+                    "Returning mapped error to frontend via stream",
+                  );
+
+                  // mapProviderError safely serializes raw errors, but add defensive try-catch
+                  try {
+                    return JSON.stringify(mappedError);
+                  } catch (stringifyError) {
+                    logger.error(
+                      { stringifyError, errorCode: mappedError.code },
+                      "Failed to stringify mapped error, returning minimal error",
+                    );
+                    // Return a minimal error response without the raw error
+                    return JSON.stringify({
+                      code: mappedError.code,
+                      message: mappedError.message,
+                      isRetryable: mappedError.isRetryable,
+                    });
+                  }
+                },
+                onFinish: async ({ messages: finalMessages }) => {
+                  if (!conversationId) return;
+
+                  // Get existing messages count to know how many are new
+                  const existingMessages =
+                    await MessageModel.findByConversation(conversationId);
+                  const existingCount = existingMessages.length;
+
+                  // Only save new messages (avoid re-saving existing ones)
+                  const newMessages = finalMessages.slice(existingCount);
+
+                  if (newMessages.length > 0) {
+                    // Check if last message has empty parts and strip it if so
+                    let messagesToSave = newMessages;
+                    if (
+                      newMessages.length > 0 &&
+                      newMessages[newMessages.length - 1].parts.length === 0
+                    ) {
+                      messagesToSave = newMessages.slice(0, -1);
+                    }
+
+                    if (messagesToSave.length > 0) {
+                      let messagesToStore = messagesToSave as UiMessage[];
+
+                      if (config.features.browserStreamingEnabled) {
+                        // Strip base64 images and large browser tool results before storing
+                        const beforeSize = estimateMessagesSize(messagesToSave);
+                        messagesToStore = stripImagesFromMessages(
+                          messagesToSave as UiMessage[],
+                        );
+                        const afterSize = estimateMessagesSize(messagesToStore);
+
+                        logger.info(
+                          {
+                            messageCount: messagesToSave.length,
+                            beforeSizeKB: Math.round(beforeSize.length / 1024),
+                            afterSizeKB: Math.round(afterSize.length / 1024),
+                            savedKB: Math.round(
+                              (beforeSize.length - afterSize.length) / 1024,
+                            ),
+                            sizeEstimateReliable:
+                              !beforeSize.isEstimated && !afterSize.isEstimated,
+                          },
+                          "[Chat] Stripped messages before saving to DB",
+                        );
+                      }
+
+                      // Append only new messages with timestamps
+                      const now = Date.now();
+                      const messageData = messagesToStore.map((msg, index) => ({
+                        conversationId,
+                        role: msg.role ?? "assistant",
+                        content: msg, // Store entire UIMessage (with images stripped)
+                        createdAt: new Date(now + index), // Preserve order
+                      }));
+
+                      await MessageModel.bulkCreate(messageData);
+
+                      logger.info(
+                        `Appended ${messagesToSave.length} new messages to conversation ${conversationId} (total: ${existingCount + messagesToSave.length})`,
+                      );
+                    }
+                  }
+                },
+              }),
             );
-            // Return a minimal error response without the raw error
-            return JSON.stringify({
-              code: mappedError.code,
-              message: mappedError.message,
-              isRetryable: mappedError.isRetryable,
-            });
-          }
-        },
-        onFinish: async ({ messages: finalMessages }) => {
-          if (!conversationId) return;
 
-          // Get existing messages count to know how many are new
-          const existingMessages =
-            await MessageModel.findByConversation(conversationId);
-          const existingCount = existingMessages.length;
+            // Wait for the stream to complete and get usage data
+            const usage = await result.usage;
 
-          // Only save new messages (avoid re-saving existing ones)
-          const newMessages = finalMessages.slice(existingCount);
-
-          if (newMessages.length > 0) {
-            // Check if last message has empty parts and strip it if so
-            let messagesToSave = newMessages;
-            if (
-              newMessages.length > 0 &&
-              newMessages[newMessages.length - 1].parts.length === 0
-            ) {
-              messagesToSave = newMessages.slice(0, -1);
-            }
-
-            if (messagesToSave.length > 0) {
-              let messagesToStore = messagesToSave as UiMessage[];
-
-              if (config.features.browserStreamingEnabled) {
-                // Strip base64 images and large browser tool results before storing
-                const beforeSize = estimateMessagesSize(messagesToSave);
-                messagesToStore = stripImagesFromMessages(
-                  messagesToSave as UiMessage[],
-                );
-                const afterSize = estimateMessagesSize(messagesToStore);
-
-                logger.info(
-                  {
-                    messageCount: messagesToSave.length,
-                    beforeSizeKB: Math.round(beforeSize.length / 1024),
-                    afterSizeKB: Math.round(afterSize.length / 1024),
-                    savedKB: Math.round(
-                      (beforeSize.length - afterSize.length) / 1024,
-                    ),
-                    sizeEstimateReliable:
-                      !beforeSize.isEstimated && !afterSize.isEstimated,
-                  },
-                  "[Chat] Stripped messages before saving to DB",
-                );
-              }
-
-              // Append only new messages with timestamps
-              const now = Date.now();
-              const messageData = messagesToStore.map((msg, index) => ({
-                conversationId,
-                role: msg.role ?? "assistant",
-                content: msg, // Store entire UIMessage (with images stripped)
-                createdAt: new Date(now + index), // Preserve order
-              }));
-
-              await MessageModel.bulkCreate(messageData);
-
+            // Write token usage data to the stream as a custom data part
+            if (usage) {
               logger.info(
-                `Appended ${messagesToSave.length} new messages to conversation ${conversationId} (total: ${existingCount + messagesToSave.length})`,
+                {
+                  conversationId,
+                  usage,
+                },
+                "Chat stream finished with usage data",
               );
+
+              // Send usage data as a custom data part
+              // The type must be 'data-<name>' format for the AI SDK to recognize it
+              writer.write({
+                type: "data-token-usage",
+                data: {
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  totalTokens: usage.totalTokens,
+                } satisfies TokenUsage,
+              });
             }
-          }
-        },
+          },
+        }),
       });
 
       // Log response headers for debugging
@@ -522,7 +566,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         ),
       },
     },
-    async ({ params: { agentId }, user, headers }, reply) => {
+    async ({ params: { agentId }, user, organizationId, headers }, reply) => {
       // Check if user is an agent admin
       const { success: isAgentAdmin } = await hasPermission(
         { profile: ["admin"] },
@@ -541,6 +585,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         agentName: agent.name,
         agentId,
         userId: user.id,
+        organizationId,
         userIsProfileAdmin: isAgentAdmin,
         // No conversation context here as this is just fetching available tools
       });
@@ -553,6 +598,75 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           (tool.inputSchema as { jsonSchema?: Record<string, unknown> })
             ?.jsonSchema || null,
       }));
+
+      return reply.send(tools);
+    },
+  );
+
+  /**
+   * Get globally available tools with their IDs for the current user.
+   * These are tools from catalogs marked as isGloballyAvailable where the user
+   * has a personal server installed. Returns tool IDs needed for enable/disable.
+   */
+  fastify.get(
+    "/api/chat/global-tools",
+    {
+      schema: {
+        operationId: RouteId.GetChatGlobalTools,
+        description:
+          "Get globally available tools with IDs for the current user",
+        tags: ["Chat"],
+        response: constructResponseSchema(
+          z.array(
+            z.object({
+              id: z.string().uuid(),
+              name: z.string(),
+              description: z.string().nullable(),
+              catalogId: z.string().uuid(),
+            }),
+          ),
+        ),
+      },
+    },
+    async ({ user }, reply) => {
+      // Get all globally available catalogs
+      const globalCatalogs =
+        await InternalMcpCatalogModel.getGloballyAvailableCatalogs();
+
+      if (globalCatalogs.length === 0) {
+        return reply.send([]);
+      }
+
+      const tools: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        catalogId: string;
+      }> = [];
+
+      for (const catalog of globalCatalogs) {
+        // Check if user has a personal server installed for this catalog
+        const userServer = await McpServerModel.getUserPersonalServerForCatalog(
+          user.id,
+          catalog.id,
+        );
+
+        if (!userServer) {
+          continue;
+        }
+
+        // Get tools for this catalog with their IDs
+        const catalogTools = await ToolModel.findByCatalogId(catalog.id);
+
+        for (const tool of catalogTools) {
+          tools.push({
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            catalogId: catalog.id,
+          });
+        }
+      }
 
       return reply.send(tools);
     },
@@ -737,6 +851,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         try {
           await browserStreamFeature.closeTab(conversation.agentId, id, {
             userId: user.id,
+            organizationId,
             userIsProfileAdmin: false,
           });
         } catch (error) {

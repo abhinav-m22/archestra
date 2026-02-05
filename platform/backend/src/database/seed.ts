@@ -1,16 +1,21 @@
 import {
   ADMIN_ROLE_NAME,
   ARCHESTRA_MCP_CATALOG_ID,
+  PLAYWRIGHT_MCP_CATALOG_ID,
+  PLAYWRIGHT_MCP_SERVER_NAME,
   type PredefinedRoleName,
+  type SupportedProvider,
   testMcpServerCommand,
 } from "@shared";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth/better-auth";
+import config from "@/config";
 import db, { schema } from "@/database";
 import logger from "@/logging";
 import {
   AgentModel,
   AgentTeamModel,
+  ChatApiKeyModel,
   DualLlmConfigModel,
   InternalMcpCatalogModel,
   MemberModel,
@@ -20,6 +25,8 @@ import {
   ToolModel,
   UserModel,
 } from "@/models";
+import { secretManager } from "@/secrets-manager";
+import { modelSyncService } from "@/services/model-sync";
 import type { InsertDualLlmConfig } from "@/types";
 
 /**
@@ -176,12 +183,41 @@ async function seedArchestraCatalogAndTools(): Promise<void> {
 }
 
 /**
+ * Seeds Playwright browser preview MCP catalog.
+ * This is a globally available catalog - tools are auto-included for all agents in chat.
+ * Each user gets their own personal Playwright server instance when they click the Browser button.
+ */
+async function seedPlaywrightCatalog(): Promise<void> {
+  await db
+    .insert(schema.internalMcpCatalogTable)
+    .values({
+      id: PLAYWRIGHT_MCP_CATALOG_ID,
+      name: PLAYWRIGHT_MCP_SERVER_NAME,
+      description:
+        "Browser automation for chat - each user gets their own isolated browser session",
+      serverType: "local",
+      requiresAuth: false,
+      isGloballyAvailable: true,
+      localConfig: {
+        dockerImage: "mcr.microsoft.com/playwright/mcp",
+        transportType: "stdio",
+        // Reduce logging verbosity from Playwright MCP server
+        arguments: ["--console-level", "error"],
+      },
+    })
+    .onConflictDoNothing();
+
+  logger.info("Seeded Playwright browser preview catalog");
+}
+
+/**
  * Seeds default team and assigns it to the default profile and user
  */
 async function seedDefaultTeam(): Promise<void> {
   const org = await OrganizationModel.getOrCreateDefaultOrganization();
   const user = await UserModel.createOrGetExistingDefaultAdminUser(auth);
-  const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+  const defaultMcpGateway = await AgentModel.getMCPGatewayOrCreateDefault();
+  const defaultLlmProxy = await AgentModel.getLLMProxyOrCreateDefault();
 
   if (!user) {
     logger.error(
@@ -213,9 +249,12 @@ async function seedDefaultTeam(): Promise<void> {
     logger.info("Added default user to default team");
   }
 
-  // Assign team to default profile (idempotent)
-  await AgentTeamModel.assignTeamsToAgent(defaultAgent.id, [defaultTeam.id]);
-  logger.info("Assigned default team to default profile");
+  // Assign team to default agents (idempotent)
+  await AgentTeamModel.assignTeamsToAgent(defaultMcpGateway.id, [
+    defaultTeam.id,
+  ]);
+  await AgentTeamModel.assignTeamsToAgent(defaultLlmProxy.id, [defaultTeam.id]);
+  logger.info("Assigned default team to default agents");
 }
 
 /**
@@ -289,14 +328,133 @@ async function seedTeamTokens(): Promise<void> {
   }
 }
 
+/**
+ * Seeds chat API keys from environment variables.
+ * For each provider with ARCHESTRA_CHAT_<PROVIDER>_API_KEY set, creates an org-wide API key
+ * and syncs models from the provider.
+ *
+ * This enables:
+ * - E2E tests: WireMock mock keys are set via env vars, models sync automatically
+ * - Production: Admins can bootstrap org-wide keys via env vars
+ */
+async function seedChatApiKeysFromEnv(): Promise<void> {
+  const org = await OrganizationModel.getOrCreateDefaultOrganization();
+
+  // Map of provider to environment variable
+  const providerEnvVars: Record<SupportedProvider, string> = {
+    anthropic: config.chat.anthropic.apiKey,
+    openai: config.chat.openai.apiKey,
+    gemini: config.chat.gemini.apiKey,
+    cerebras: config.chat.cerebras.apiKey,
+    cohere: config.chat.cohere.apiKey,
+    mistral: config.chat.mistral.apiKey,
+    ollama: config.chat.ollama.apiKey,
+    vllm: config.chat.vllm.apiKey,
+    zhipuai: config.chat.zhipuai.apiKey,
+    bedrock: config.chat.bedrock.apiKey,
+  };
+
+  for (const [provider, apiKeyValue] of Object.entries(providerEnvVars)) {
+    // Skip providers without API keys configured
+    if (!apiKeyValue || apiKeyValue.trim() === "") {
+      continue;
+    }
+
+    const typedProvider = provider as SupportedProvider;
+
+    // Check if API key already exists for this provider
+    const existing = await ChatApiKeyModel.findByScope(
+      org.id,
+      typedProvider,
+      "org_wide",
+    );
+
+    if (existing) {
+      // Sync models if not already synced
+      await syncModelsForApiKey(existing.id, typedProvider, apiKeyValue);
+      continue;
+    }
+
+    // Create a secret with the API key from env
+    const secret = await secretManager().createSecret(
+      { apiKey: apiKeyValue },
+      `chatapikey-env-${provider}`,
+    );
+
+    // Create the API key
+    const apiKey = await ChatApiKeyModel.create({
+      organizationId: org.id,
+      name: getProviderDisplayName(typedProvider),
+      provider: typedProvider,
+      secretId: secret.id,
+      scope: "org_wide",
+      userId: null,
+      teamId: null,
+    });
+
+    logger.info(
+      { provider, apiKeyId: apiKey.id },
+      "Created chat API key from environment variable",
+    );
+
+    // Sync models from provider
+    await syncModelsForApiKey(apiKey.id, typedProvider, apiKeyValue);
+  }
+}
+
+/**
+ * Sync models for an API key.
+ */
+async function syncModelsForApiKey(
+  apiKeyId: string,
+  provider: SupportedProvider,
+  apiKeyValue: string,
+): Promise<void> {
+  try {
+    await modelSyncService.syncModelsForApiKey(apiKeyId, provider, apiKeyValue);
+    logger.info({ provider, apiKeyId }, "Synced models for API key");
+  } catch (error) {
+    logger.error(
+      {
+        provider,
+        apiKeyId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+      "Failed to sync models for API key",
+    );
+  }
+}
+
+/**
+ * Get display name for a provider.
+ */
+function getProviderDisplayName(provider: SupportedProvider): string {
+  const displayNames: Record<SupportedProvider, string> = {
+    anthropic: "Anthropic",
+    openai: "OpenAI",
+    gemini: "Google",
+    cerebras: "Cerebras",
+    cohere: "Cohere",
+    mistral: "Mistral",
+    ollama: "Ollama",
+    vllm: "vLLM",
+    zhipuai: "ZhipuAI",
+    bedrock: "AWS Bedrock",
+  };
+  return displayNames[provider];
+}
+
 export async function seedRequiredStartingData(): Promise<void> {
   await seedDefaultUserAndOrg();
   await seedDualLlmConfig();
-  // Create default agent before seeding internal agents
-  await AgentModel.getAgentOrCreateDefault();
+  // Create default agents before seeding internal agents
+  await AgentModel.getMCPGatewayOrCreateDefault();
+  await AgentModel.getLLMProxyOrCreateDefault();
   await seedDefaultTeam();
   await seedChatAssistantAgent();
   await seedArchestraCatalogAndTools();
+  await seedPlaywrightCatalog();
   await seedTestMcpServer();
   await seedTeamTokens();
+  await seedChatApiKeysFromEnv();
 }

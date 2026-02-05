@@ -60,7 +60,7 @@ const getNavigationItems = (isAuthenticated: boolean): MenuItem[] => {
   }
   return [
     {
-      title: "Chat",
+      title: "New Chat",
       url: "/chat",
       icon: MessageCircle,
       customIsActive: (pathname: string, searchParams: URLSearchParams) =>
@@ -127,7 +127,7 @@ const userItems: MenuItem[] = [
   // Sign up is disabled - users must use invitation links to join
 ];
 
-const CommunitySideBarSection = ({ starCount }: { starCount: number }) => (
+const CommunitySideBarSection = ({ starCount }: { starCount: string }) => (
   <SidebarGroup className="px-4 py-0">
     <SidebarGroupLabel>Community</SidebarGroupLabel>
     <SidebarGroupContent>
@@ -200,15 +200,12 @@ const MainSideBarSection = ({
   isAuthenticated: boolean;
   pathname: string;
   searchParams: URLSearchParams;
-  starCount: number;
+  starCount: string;
 }) => {
   const allItems = getNavigationItems(isAuthenticated);
   const permissionMap = usePermissionMap(requiredPagePermissionsMap);
-  if (permissionMap === null) {
-    return null;
-  }
   const permittedItems = allItems.filter(
-    (item) => permissionMap[item.url] ?? true,
+    (item) => permissionMap?.[item.url] ?? true,
   );
 
   return (
@@ -303,6 +300,7 @@ export function AppSidebar() {
   const searchParams = useSearchParams();
   const isAuthenticated = useIsAuthenticated();
   const { data: starCount } = useGithubStars();
+  const formattedStarCount = starCount ?? "";
   const { logo, isLoadingAppearance } = useOrgTheme() ?? {};
 
   const logoToShow = logo ? (
@@ -336,7 +334,7 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="flex flex-col gap-2">
-        {isLoadingAppearance ? <div className="h-[20px]" /> : logoToShow}
+        {isLoadingAppearance ? <div className="h-[47px]" /> : logoToShow}
       </SidebarHeader>
       <SidebarContent>
         {isAuthenticated ? (
@@ -344,10 +342,10 @@ export function AppSidebar() {
             isAuthenticated={isAuthenticated}
             pathname={pathname}
             searchParams={searchParams}
-            starCount={starCount}
+            starCount={formattedStarCount}
           />
         ) : (
-          <CommunitySideBarSection starCount={starCount} />
+          <CommunitySideBarSection starCount={formattedStarCount} />
         )}
       </SidebarContent>
       <FooterSideBarSection pathname={pathname} />

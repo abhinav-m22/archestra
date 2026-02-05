@@ -4,7 +4,8 @@ export const RouteId = {
   GetAllAgents: "getAllAgents",
   CreateAgent: "createAgent",
   GetAgent: "getAgent",
-  GetDefaultAgent: "getDefaultAgent",
+  GetDefaultMcpGateway: "getDefaultMcpGateway",
+  GetDefaultLlmProxy: "getDefaultLlmProxy",
   UpdateAgent: "updateAgent",
   DeleteAgent: "deleteAgent",
   GetAgentVersions: "getAgentVersions",
@@ -43,17 +44,18 @@ export const RouteId = {
   UpdateInternalMcpCatalogItem: "updateInternalMcpCatalogItem",
   DeleteInternalMcpCatalogItem: "deleteInternalMcpCatalogItem",
   DeleteInternalMcpCatalogItemByName: "deleteInternalMcpCatalogItemByName",
+  GetDeploymentYamlPreview: "getDeploymentYamlPreview",
+  ValidateDeploymentYaml: "validateDeploymentYaml",
+  ResetDeploymentYaml: "resetDeploymentYaml",
 
   // MCP Server Routes
   GetMcpServers: "getMcpServers",
   GetMcpServer: "getMcpServer",
   GetMcpServerTools: "getMcpServerTools",
-  GetMcpServerLogs: "getMcpServerLogs",
   InstallMcpServer: "installMcpServer",
   DeleteMcpServer: "deleteMcpServer",
   ReauthenticateMcpServer: "reauthenticateMcpServer",
-  RestartMcpServer: "restartMcpServer",
-  RestartAllMcpServerInstallations: "restartAllMcpServerInstallations",
+  ReinstallMcpServer: "reinstallMcpServer",
   GetMcpServerInstallationStatus: "getMcpServerInstallationStatus",
   McpProxy: "mcpProxy",
 
@@ -163,6 +165,11 @@ export const RouteId = {
     "cerebrasChatCompletionsWithDefaultAgent",
   CerebrasChatCompletionsWithAgent: "cerebrasChatCompletionsWithAgent",
 
+  // Proxy Routes - Mistral
+  MistralChatCompletionsWithDefaultAgent:
+    "mistralChatCompletionsWithDefaultAgent",
+  MistralChatCompletionsWithAgent: "mistralChatCompletionsWithAgent",
+
   // Proxy Routes - vLLM
   VllmChatCompletionsWithDefaultAgent: "vllmChatCompletionsWithDefaultAgent",
   VllmChatCompletionsWithAgent: "vllmChatCompletionsWithAgent",
@@ -176,11 +183,23 @@ export const RouteId = {
     "zhipuaiChatCompletionsWithDefaultAgent",
   ZhipuaiChatCompletionsWithAgent: "zhipuaiChatCompletionsWithAgent",
 
+  // Proxy Routes - AWS Bedrock
+  BedrockConverseWithDefaultAgent: "bedrockConverseWithDefaultAgent",
+  BedrockConverseWithAgent: "bedrockConverseWithAgent",
+  BedrockConverseStreamWithDefaultAgent:
+    "bedrockConverseStreamWithDefaultAgent",
+  BedrockConverseStreamWithAgent: "bedrockConverseStreamWithAgent",
+  // AI SDK compatible routes (model ID in URL)
+  BedrockConverseWithAgentAndModel: "bedrockConverseWithAgentAndModel",
+  BedrockConverseStreamWithAgentAndModel:
+    "bedrockConverseStreamWithAgentAndModel",
+
   // Chat Routes
   StreamChat: "streamChat",
   GetChatConversations: "getChatConversations",
   GetChatConversation: "getChatConversation",
   GetChatAgentMcpTools: "getChatAgentMcpTools",
+  GetChatGlobalTools: "getChatGlobalTools",
   CreateChatConversation: "createChatConversation",
   UpdateChatConversation: "updateChatConversation",
   DeleteChatConversation: "deleteChatConversation",
@@ -191,7 +210,7 @@ export const RouteId = {
   UpdateConversationEnabledTools: "updateConversationEnabledTools",
   DeleteConversationEnabledTools: "deleteConversationEnabledTools",
   GetChatModels: "getChatModels",
-  InvalidateChatModelsCache: "invalidateChatModelsCache",
+  SyncChatModels: "syncChatModels",
 
   // Chat API Key Routes
   GetChatApiKeys: "getChatApiKeys",
@@ -200,6 +219,9 @@ export const RouteId = {
   GetChatApiKey: "getChatApiKey",
   UpdateChatApiKey: "updateChatApiKey",
   DeleteChatApiKey: "deleteChatApiKey",
+
+  // Models with API Keys Routes
+  GetModelsWithApiKeys: "getModelsWithApiKeys",
 
   // Prompt Routes
   GetPrompts: "getPrompts",
@@ -295,6 +317,9 @@ export const RouteId = {
   GetChatOpsStatus: "getChatOpsStatus",
   ListChatOpsBindings: "listChatOpsBindings",
   DeleteChatOpsBinding: "deleteChatOpsBinding",
+
+  // Invitation Routes
+  CheckInvitation: "checkInvitation",
 } as const;
 
 export type RouteId = (typeof RouteId)[keyof typeof RouteId];

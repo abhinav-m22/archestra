@@ -74,6 +74,15 @@ export const E2eTestId = {
   // Chat Prompt Input
   ChatFileUploadButton: "chat-file-upload-button",
   ChatDisabledFileUploadButton: "chat-disabled-file-upload-button",
+  // Chat Model Selector
+  ChatModelSelectorTrigger: "chat-model-selector-trigger",
+  ChatPromptTextarea: "chat-prompt-textarea",
+  // MCP Logs
+  McpLogsDialog: "mcp-logs-dialog",
+  McpLogsContent: "mcp-logs-content",
+  McpLogsError: "mcp-logs-error",
+  McpLogsViewButton: "mcp-logs-view-button",
+  McpLogsEditConfigButton: "mcp-logs-edit-config-button",
 } as const;
 export type E2eTestId = (typeof E2eTestId)[keyof typeof E2eTestId];
 
@@ -88,6 +97,8 @@ export const EMAIL_PLACEHOLDER = "admin@example.com";
 export const PASSWORD_PLACEHOLDER = "password";
 
 export const DEFAULT_PROFILE_NAME = "Default Profile";
+export const DEFAULT_MCP_GATEWAY_NAME = "Default MCP Gateway";
+export const DEFAULT_LLM_PROXY_NAME = "Default LLM Proxy";
 
 /**
  * Separator used to construct fully-qualified MCP tool names
@@ -228,3 +239,33 @@ export const DOMAIN_VALIDATION_REGEX =
  * Maximum domain length per DNS specification (RFC 1035).
  */
 export const MAX_DOMAIN_LENGTH = 253;
+
+// =============================================================================
+// Browser Preview Feature
+// =============================================================================
+
+/**
+ * Fixed UUID for the Playwright browser preview MCP catalog entry.
+ * This ID is constant to ensure consistent catalog lookup across server restarts.
+ * Must be a valid UUID format (version 4, variant 8/9/a/b) for Zod validation.
+ */
+export const PLAYWRIGHT_MCP_CATALOG_ID = "00000000-0000-4000-8000-000000000002";
+export const PLAYWRIGHT_MCP_SERVER_NAME = "playwright-browser";
+
+/**
+ * Default browser viewport dimensions used by Playwright MCP in browser preview feature.
+ */
+export const DEFAULT_BROWSER_PREVIEW_VIEWPORT_WIDTH = 800;
+export const DEFAULT_BROWSER_PREVIEW_VIEWPORT_HEIGHT = 800;
+
+/**
+ * Approximate height of the browser preview header (title bar + URL bar).
+ * Used when calculating popup window dimensions.
+ */
+export const BROWSER_PREVIEW_HEADER_HEIGHT = 77;
+
+/**
+ * Default URL to show when browser preview is opened for a new conversation.
+ * Using about:blank ensures no automatic navigation happens until user requests it.
+ */
+export const DEFAULT_BROWSER_PREVIEW_URL = "about:blank";

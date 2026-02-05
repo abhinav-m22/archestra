@@ -1,15 +1,19 @@
 import {
   archestraApiSdk,
-  isBrowserMcpTool,
+  PLAYWRIGHT_MCP_CATALOG_ID,
+  PLAYWRIGHT_MCP_SERVER_NAME,
   type SupportedProvider,
 } from "@shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "./utils";
 
 const {
   getChatConversations,
   getChatConversation,
   getChatAgentMcpTools,
+  getChatGlobalTools,
   createChatConversation,
   updateChatConversation,
   deleteChatConversation,
@@ -18,6 +22,8 @@ const {
   updateConversationEnabledTools,
   deleteConversationEnabledTools,
   getAgentTools,
+  installMcpServer,
+  getMcpServer,
 } = archestraApiSdk;
 
 export function useConversation(conversationId?: string) {
@@ -28,13 +34,14 @@ export function useConversation(conversationId?: string) {
       const response = await getChatConversation({
         path: { id: conversationId },
       });
-      // Return null for 400 (invalid UUID) or 404 (not found) - handled gracefully by UI
+      // Return null for any error - handled gracefully by UI
       if (response.error) {
         const status = response.response.status;
-        if (status === 400 || status === 404) {
-          return null;
+        // Only show toast for unexpected errors (not 400/404 which are handled gracefully)
+        if (status !== 400 && status !== 404) {
+          handleApiError(response.error);
         }
-        throw new Error("Failed to fetch conversation");
+        return null;
       }
       return response.data;
     },
@@ -63,7 +70,10 @@ export function useConversations({
         query: trimmedSearch ? { search: trimmedSearch } : undefined,
       });
 
-      if (error) throw new Error("Failed to fetch conversations");
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
       return data;
     },
     staleTime: search ? 0 : 2_000, // No stale time for searches, 2 seconds otherwise
@@ -95,7 +105,10 @@ export function useCreateConversation() {
           chatApiKeyId: chatApiKeyId ?? undefined,
         },
       });
-      if (error) throw new Error("Failed to create conversation");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (newConversation) => {
@@ -134,7 +147,10 @@ export function useUpdateConversation() {
         path: { id },
         body: { title, selectedModel, selectedProvider, chatApiKeyId, agentId },
       });
-      if (error) throw new Error("Failed to update conversation");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (_, variables) => {
@@ -145,11 +161,6 @@ export function useUpdateConversation() {
       if (variables.chatApiKeyId) {
         queryClient.invalidateQueries({ queryKey: ["chat-models"] });
       }
-    },
-    onError: (error) => {
-      toast.error(
-        `Failed to update conversation: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
     },
   });
 }
@@ -162,7 +173,10 @@ export function useDeleteConversation() {
       const { data, error } = await deleteChatConversation({
         path: { id },
       });
-      if (error) throw new Error("Failed to delete conversation");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (_, deletedId) => {
@@ -188,7 +202,10 @@ export function useGenerateConversationTitle() {
         path: { id },
         body: { regenerate },
       });
-      if (error) throw new Error("Failed to generate conversation title");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (_, variables) => {
@@ -208,13 +225,28 @@ export function useChatProfileMcpTools(agentId: string | undefined) {
       const { data, error } = await getChatAgentMcpTools({
         path: { agentId },
       });
-      if (error) throw new Error("Failed to fetch MCP tools");
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
       return data;
     },
     enabled: !!agentId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000,
   });
+}
+
+/**
+ * Fetch enabled tools for a conversation (non-hook version for use in callbacks)
+ * Returns { hasCustomSelection: boolean, enabledToolIds: string[] } or null on error
+ */
+export async function fetchConversationEnabledTools(conversationId: string) {
+  const { data, error } = await getConversationEnabledTools({
+    path: { id: conversationId },
+  });
+  if (error) return null;
+  return data;
 }
 
 /**
@@ -229,10 +261,13 @@ export function useConversationEnabledTools(
     queryKey: ["conversation", conversationId, "enabled-tools"],
     queryFn: async () => {
       if (!conversationId) return null;
-      const { data, error } = await getConversationEnabledTools({
-        path: { id: conversationId },
-      });
-      if (error) throw new Error("Failed to fetch enabled tools");
+      const data = await fetchConversationEnabledTools(conversationId);
+      if (!data) {
+        handleApiError({
+          error: new Error("Failed to fetch enabled tools"),
+        });
+        return null;
+      }
       return data;
     },
     enabled: !!conversationId,
@@ -260,7 +295,10 @@ export function useUpdateConversationEnabledTools() {
         path: { id: conversationId },
         body: { toolIds },
       });
-      if (error) throw new Error("Failed to update enabled tools");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (_, variables) => {
@@ -282,7 +320,10 @@ export function useClearConversationEnabledTools() {
       const { data, error } = await deleteConversationEnabledTools({
         path: { id: conversationId },
       });
-      if (error) throw new Error("Failed to clear enabled tools");
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
       return data;
     },
     onSuccess: (_, conversationId) => {
@@ -306,7 +347,10 @@ export function useProfileToolsWithIds(agentId: string | undefined) {
         path: { agentId },
         query: { excludeLlmProxyOrigin: true },
       });
-      if (error) throw new Error("Failed to fetch profile tools");
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
       return data;
     },
     enabled: !!agentId,
@@ -328,7 +372,10 @@ export function useAgentDelegationTools(agentId: string | undefined) {
         path: { agentId },
         query: { excludeLlmProxyOrigin: true },
       });
-      if (error) throw new Error("Failed to fetch agent tools");
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
       // Filter for delegation tools (tools with name starting with "delegate_to_")
       return (data ?? []).filter((tool) =>
         tool.name.startsWith("delegate_to_"),
@@ -340,13 +387,120 @@ export function useAgentDelegationTools(agentId: string | undefined) {
   });
 }
 
+/**
+ * Get globally available tools with IDs for the current user.
+ * These are tools from catalogs marked as isGloballyAvailable where the user
+ * has a personal server installed (e.g., Playwright browser tools).
+ */
+export function useGlobalChatTools() {
+  return useQuery({
+    queryKey: ["chat", "global-tools"],
+    queryFn: async () => {
+      const { data, error } = await getChatGlobalTools();
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Install browser preview (Playwright) for the current user with polling for completion.
+ * Creates a personal Playwright server if one doesn't exist.
+ * Polls for installation status since local servers are deployed asynchronously to K8s.
+ */
+export function useBrowserInstallation() {
+  const [installingServerId, setInstallingServerId] = useState<string | null>(
+    null,
+  );
+  const queryClient = useQueryClient();
+
+  const installMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await installMcpServer({
+        body: {
+          name: PLAYWRIGHT_MCP_SERVER_NAME,
+          catalogId: PLAYWRIGHT_MCP_CATALOG_ID,
+        },
+      });
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.id) {
+        setInstallingServerId(data.id);
+      }
+    },
+  });
+
+  // Poll for installation status
+  const statusQuery = useQuery({
+    queryKey: ["browser-installation-status", installingServerId],
+    queryFn: async () => {
+      if (!installingServerId) return null;
+      const response = await getMcpServer({
+        path: { id: installingServerId },
+      });
+      return response.data?.localInstallationStatus ?? null;
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      return status === "pending" || status === "discovering-tools"
+        ? 2000
+        : false;
+    },
+    enabled: !!installingServerId,
+  });
+
+  // When installation completes, invalidate queries
+  useEffect(() => {
+    if (statusQuery.data === "success") {
+      setInstallingServerId(null);
+      queryClient.invalidateQueries({ queryKey: ["chat", "global-tools"] });
+      queryClient.invalidateQueries({ queryKey: ["chat", "agents"] });
+      toast.success("Browser installed successfully");
+    }
+    if (statusQuery.data === "error") {
+      setInstallingServerId(null);
+      toast.error("Failed to install browser");
+    }
+  }, [statusQuery.data, queryClient]);
+
+  return {
+    isInstalling:
+      installMutation.isPending ||
+      (!!installingServerId &&
+        statusQuery.data !== "success" &&
+        statusQuery.data !== "error"),
+    installBrowser: installMutation.mutateAsync,
+    installationStatus: statusQuery.data,
+  };
+}
+
 export function useHasPlaywrightMcpTools(agentId: string | undefined) {
   const toolsQuery = useChatProfileMcpTools(agentId);
+  const globalToolsQuery = useGlobalChatTools();
+  const browserInstall = useBrowserInstallation();
 
-  return (
-    toolsQuery.data?.some((tool) => {
-      const toolName = tool.name;
-      return typeof toolName === "string" && isBrowserMcpTool(toolName);
-    }) ?? false
-  );
+  // Only check global tools with PLAYWRIGHT_MCP_CATALOG_ID
+  // Profile tools (e.g., microsoft__playwright-mcp) should NOT enable browser preview
+  // Those tools work as regular MCP tools but without the integrated preview feature
+  const hasPlaywrightMcp =
+    globalToolsQuery.data?.some(
+      (tool) => tool.catalogId === PLAYWRIGHT_MCP_CATALOG_ID,
+    ) ?? false;
+
+  return {
+    hasPlaywrightMcp,
+    isLoading: toolsQuery.isLoading || globalToolsQuery.isLoading,
+    isInstalling: browserInstall.isInstalling,
+    installBrowser: browserInstall.installBrowser,
+  };
 }

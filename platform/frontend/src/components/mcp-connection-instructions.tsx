@@ -1,6 +1,10 @@
 "use client";
 
-import { ARCHESTRA_MCP_CATALOG_ID, archestraApiSdk } from "@shared";
+import {
+  ARCHESTRA_MCP_CATALOG_ID,
+  type archestraApiTypes,
+  MCP_SERVER_TOOL_NAME_SEPARATOR,
+} from "@shared";
 import {
   Bot,
   Check,
@@ -44,8 +48,8 @@ import {
   useMcpServers,
   useMcpServersGroupedByCatalog,
 } from "@/lib/mcp-server.query";
-import { useTokens } from "@/lib/team-token.query";
-import { useUserToken } from "@/lib/user-token.query";
+import { useFetchTeamTokenValue, useTokens } from "@/lib/team-token.query";
+import { useFetchUserTokenValue, useUserToken } from "@/lib/user-token.query";
 
 const { externalProxyUrls, internalProxyUrl } = config.api;
 
@@ -62,8 +66,10 @@ export function McpConnectionInstructions({
   agentId,
   hideProfileSelector = false,
 }: McpConnectionInstructionsProps) {
-  const { data: profiles } = useProfiles();
-  const { data: mcpServers } = useMcpServers();
+  const { data: profiles = [] } = useProfiles({
+    filters: { agentTypes: ["profile", "mcp_gateway"] },
+  });
+  const { data: mcpServers = [] } = useMcpServers();
   const { data: catalogItems = [] } = useInternalMcpCatalog();
   const { data: userToken } = useUserToken();
   const { data: hasProfileAdminPermission } = useHasPermissions({
@@ -85,7 +91,12 @@ export function McpConnectionInstructions({
   const [exposedTokenValue, setExposedTokenValue] = useState<string | null>(
     null,
   );
-  const [isLoadingToken, setIsLoadingToken] = useState(false);
+
+  // Mutations for fetching token values
+  const fetchUserTokenMutation = useFetchUserTokenValue();
+  const fetchTeamTokenMutation = useFetchTeamTokenValue();
+  const isLoadingToken =
+    fetchUserTokenMutation.isPending || fetchTeamTokenMutation.isPending;
 
   // Update selected profile when agentId changes
   useEffect(() => {
@@ -112,7 +123,7 @@ export function McpConnectionInstructions({
         mcpServerToolGroups: new Map<
           string,
           {
-            server: (typeof mcpServers)[0];
+            server: (typeof mcpServers)[number];
             tools: Array<{
               id: string;
               name: string;
@@ -132,7 +143,7 @@ export function McpConnectionInstructions({
     const groups = new Map<
       string,
       {
-        server: (typeof mcpServers)[0];
+        server: (typeof mcpServers)[number];
         tools: Array<{ id: string; name: string; description?: string | null }>;
         credentialSourceMcpServerId?: string | null;
         useDynamicTeamCredential?: boolean;
@@ -150,7 +161,8 @@ export function McpConnectionInstructions({
 
       // Check if this is an Archestra built-in tool
       if (tool.catalogId === ARCHESTRA_MCP_CATALOG_ID) {
-        const toolName = tool.name.split("__").pop() ?? tool.name;
+        const toolName =
+          tool.name.split(MCP_SERVER_TOOL_NAME_SEPARATOR).pop() ?? tool.name;
         archestraToolsList.push({
           id: tool.id,
           name: toolName,
@@ -159,11 +171,12 @@ export function McpConnectionInstructions({
         return;
       }
 
-      if (tool.mcpServerId && mcpServers) {
+      if (tool.mcpServerId) {
         const server = mcpServers.find((s) => s.id === tool.mcpServerId);
         if (server) {
           const existing = groups.get(tool.mcpServerId);
-          const toolName = tool.name.split("__").pop() ?? tool.name;
+          const toolName =
+            tool.name.split(MCP_SERVER_TOOL_NAME_SEPARATOR).pop() ?? tool.name;
           const toolData = {
             id: tool.id,
             name: toolName,
@@ -190,9 +203,10 @@ export function McpConnectionInstructions({
     return { mcpServerToolGroups: groups, archestraTools: archestraToolsList };
   }, [mcpServers, assignedToolsData]);
 
+  type ProfileType = archestraApiTypes.GetAllAgentsResponses["200"][number];
   const getToolsCountForProfile = useCallback(
-    (profile: (typeof profiles)[number]) => {
-      return profile.tools.reduce((acc, curr) => {
+    (profile: ProfileType) => {
+      return profile.tools.reduce((acc: number, curr) => {
         if (curr.mcpServerId) {
           const server = mcpServers?.find((s) => s.id === curr.mcpServerId);
           if (server) {
@@ -278,41 +292,34 @@ export function McpConnectionInstructions({
       return;
     }
 
-    setIsLoadingToken(true);
-    try {
-      let tokenValue: string;
+    let tokenValue: string | null = null;
 
-      if (isPersonalTokenSelected) {
-        // Fetch personal token value
-        const response = await archestraApiSdk.getUserTokenValue();
-        if (response.error || !response.data) {
-          throw new Error("Failed to fetch personal token value");
-        }
-        tokenValue = (response.data as { value: string }).value;
-      } else {
-        // Fetch team token value
-        if (!selectedTeamToken) {
-          setIsLoadingToken(false);
-          return;
-        }
-        const response = await archestraApiSdk.getTokenValue({
-          path: { tokenId: selectedTeamToken.id },
-        });
-        if (response.error || !response.data) {
-          throw new Error("Failed to fetch token value");
-        }
-        tokenValue = (response.data as { value: string }).value;
+    if (isPersonalTokenSelected) {
+      // Fetch personal token value
+      const result = await fetchUserTokenMutation.mutateAsync();
+      tokenValue = result?.value ?? null;
+    } else {
+      // Fetch team token value
+      if (!selectedTeamToken) {
+        return;
       }
+      const result = await fetchTeamTokenMutation.mutateAsync(
+        selectedTeamToken.id,
+      );
+      tokenValue = result?.value ?? null;
+    }
 
+    if (tokenValue) {
       setExposedTokenValue(tokenValue);
       setShowExposedToken(true);
-    } catch (error) {
-      toast.error("Failed to fetch token");
-      console.error(error);
-    } finally {
-      setIsLoadingToken(false);
     }
-  }, [isPersonalTokenSelected, selectedTeamToken, showExposedToken]);
+  }, [
+    isPersonalTokenSelected,
+    selectedTeamToken,
+    showExposedToken,
+    fetchUserTokenMutation,
+    fetchTeamTokenMutation,
+  ]);
 
   const handleCopyConfigWithoutRealToken = async () => {
     const fullConfig = JSON.stringify(
@@ -338,63 +345,63 @@ export function McpConnectionInstructions({
 
   const handleCopyConfig = useCallback(async () => {
     setIsCopyingConfig(true);
-    try {
-      let tokenValue: string;
+    let tokenValue: string | null = null;
 
-      if (isPersonalTokenSelected) {
-        // Fetch personal token value
-        const response = await archestraApiSdk.getUserTokenValue();
-        if (response.error || !response.data) {
-          throw new Error("Failed to fetch personal token value");
-        }
-        tokenValue = (response.data as { value: string }).value;
-      } else {
-        // Fetch team token value
-        if (!selectedTeamToken) {
-          setIsCopyingConfig(false);
-          return;
-        }
-        const response = await archestraApiSdk.getTokenValue({
-          path: { tokenId: selectedTeamToken.id },
-        });
-        if (response.error || !response.data) {
-          throw new Error("Failed to fetch token value");
-        }
-        tokenValue = (response.data as { value: string }).value;
+    if (isPersonalTokenSelected) {
+      // Fetch personal token value
+      const result = await fetchUserTokenMutation.mutateAsync();
+      tokenValue = result?.value ?? null;
+    } else {
+      // Fetch team token value
+      if (!selectedTeamToken) {
+        setIsCopyingConfig(false);
+        return;
       }
+      const result = await fetchTeamTokenMutation.mutateAsync(
+        selectedTeamToken.id,
+      );
+      tokenValue = result?.value ?? null;
+    }
 
-      const fullConfig = JSON.stringify(
-        {
-          mcpServers: {
-            archestra: {
-              url: mcpUrl,
-              headers: {
-                Authorization: `Bearer ${tokenValue}`,
-              },
+    if (!tokenValue) {
+      setIsCopyingConfig(false);
+      return;
+    }
+
+    const fullConfig = JSON.stringify(
+      {
+        mcpServers: {
+          archestra: {
+            url: mcpUrl,
+            headers: {
+              Authorization: `Bearer ${tokenValue}`,
             },
           },
         },
-        null,
-        2,
-      );
+      },
+      null,
+      2,
+    );
 
-      await navigator.clipboard.writeText(fullConfig);
-      setCopiedConfig(true);
-      toast.success("Configuration copied");
-      setTimeout(() => setCopiedConfig(false), 2000);
-    } catch {
-      toast.error("Failed to copy configuration");
-    } finally {
-      setIsCopyingConfig(false);
-    }
-  }, [mcpUrl, isPersonalTokenSelected, selectedTeamToken]);
+    await navigator.clipboard.writeText(fullConfig);
+    setCopiedConfig(true);
+    toast.success("Configuration copied");
+    setTimeout(() => setCopiedConfig(false), 2000);
+    setIsCopyingConfig(false);
+  }, [
+    mcpUrl,
+    isPersonalTokenSelected,
+    selectedTeamToken,
+    fetchUserTokenMutation,
+    fetchTeamTokenMutation,
+  ]);
 
   return (
     <div className="space-y-6">
       {/* Profile Selector - hidden when opened from a specific profile's dialog */}
       {!hideProfileSelector && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Select Profile</Label>
+          <Label className="text-sm font-medium">Select MCP Gateway</Label>
           <Select
             value={selectedProfileId}
             onValueChange={setSelectedProfileId}

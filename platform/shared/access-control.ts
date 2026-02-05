@@ -126,7 +126,10 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetAgent]: {
     profile: ["read"],
   },
-  [RouteId.GetDefaultAgent]: {
+  [RouteId.GetDefaultMcpGateway]: {
+    profile: ["read"],
+  },
+  [RouteId.GetDefaultLlmProxy]: {
     profile: ["read"],
   },
   [RouteId.CreateAgent]: {
@@ -299,6 +302,15 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.DeleteInternalMcpCatalogItemByName]: {
     internalMcpCatalog: ["delete"],
   },
+  [RouteId.GetDeploymentYamlPreview]: {
+    internalMcpCatalog: ["read"],
+  },
+  [RouteId.ValidateDeploymentYaml]: {
+    internalMcpCatalog: ["read"],
+  },
+  [RouteId.ResetDeploymentYaml]: {
+    internalMcpCatalog: ["update"],
+  },
   [RouteId.GetMcpServers]: {
     mcpServer: ["read"],
   },
@@ -306,9 +318,6 @@ export const requiredEndpointPermissionsMap: Partial<
     mcpServer: ["read"],
   },
   [RouteId.GetMcpServerTools]: {
-    mcpServer: ["read"],
-  },
-  [RouteId.GetMcpServerLogs]: {
     mcpServer: ["read"],
   },
   [RouteId.InstallMcpServer]: {
@@ -320,11 +329,8 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.ReauthenticateMcpServer]: {
     mcpServer: ["update"],
   },
-  [RouteId.RestartMcpServer]: {
+  [RouteId.ReinstallMcpServer]: {
     mcpServer: ["update"],
-  },
-  [RouteId.RestartAllMcpServerInstallations]: {
-    mcpServer: ["admin"],
   },
   [RouteId.GetMcpServerInstallationStatus]: {
     mcpServer: ["read"],
@@ -446,6 +452,9 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetChatAgentMcpTools]: {
     profile: ["read"],
   },
+  [RouteId.GetChatGlobalTools]: {
+    conversation: ["read"],
+  },
   [RouteId.CreateChatConversation]: {
     conversation: ["create"],
   },
@@ -464,7 +473,7 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetChatModels]: {
     conversation: ["read"],
   },
-  [RouteId.InvalidateChatModelsCache]: {
+  [RouteId.SyncChatModels]: {
     chatSettings: ["update"],
   },
   [RouteId.UpdateChatMessage]: {
@@ -496,6 +505,9 @@ export const requiredEndpointPermissionsMap: Partial<
   },
   [RouteId.DeleteChatApiKey]: {
     chatSettings: ["delete"],
+  },
+  [RouteId.GetModelsWithApiKeys]: {
+    chatSettings: ["read"],
   },
   [RouteId.GetPrompts]: {
     prompt: ["read"],

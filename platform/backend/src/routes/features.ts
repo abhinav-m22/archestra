@@ -36,6 +36,8 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
             vllmEnabled: z.boolean(),
             /** Ollama mode - when enabled, no API key is typically needed */
             ollamaEnabled: z.boolean(),
+            /** Mistral mode - when enabled, Mistral AI provider is available */
+            mistralEnabled: z.boolean(),
             /** Global tool policy - permissive bypasses policy checks, restrictive enforces them */
             globalToolPolicy: z.enum(["permissive", "restrictive"]),
             /** Browser streaming - enables live browser automation via Playwright MCP */
@@ -55,6 +57,8 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
             }),
             /** MCP server base Docker image (shown in UI for reference) */
             mcpServerBaseImage: z.string(),
+            /** Default K8s namespace for MCP server pods */
+            orchestratorK8sNamespace: z.string(),
           }),
         },
       },
@@ -73,10 +77,12 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
         geminiVertexAiEnabled: isVertexAiEnabled(),
         vllmEnabled: config.llm.vllm.enabled,
         ollamaEnabled: config.llm.ollama.enabled,
+        mistralEnabled: true, // Mistral is always enabled (has default base URL)
         globalToolPolicy,
         incomingEmail: getEmailProviderInfo(),
         knowledgeGraph: getKnowledgeGraphProviderInfo(),
         mcpServerBaseImage: config.orchestrator.mcpServerBaseImage,
+        orchestratorK8sNamespace: config.orchestrator.kubernetes.namespace,
       });
     },
   );
