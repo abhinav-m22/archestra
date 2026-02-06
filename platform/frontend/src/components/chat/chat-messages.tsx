@@ -131,6 +131,13 @@ export function ChatMessages({
     partIndex: number,
     newText: string,
   ) => {
+    // Only persisted messages (with UUID IDs) can be updated via the backend.
+    // Skip silently for temporary client-side messages (e.g. when the LLM call failed
+    // before messages were saved to the database).
+    if (!isUuid(messageId)) {
+      return;
+    }
+
     const data = await updateChatMessageMutation.mutateAsync({
       messageId,
       partIndex,
@@ -148,6 +155,11 @@ export function ChatMessages({
     partIndex: number,
     newText: string,
   ) => {
+    // Only persisted messages (with UUID IDs) can be updated via the backend.
+    if (!isUuid(messageId)) {
+      return;
+    }
+
     const data = await updateChatMessageMutation.mutateAsync({
       messageId,
       partIndex,
@@ -438,6 +450,7 @@ export function ChatMessages({
           {messages.map((message, idx) => {
             const isDimmed =
               editingMessageIndex !== -1 && idx > editingMessageIndex;
+            const isPersistedMessage = isUuid(message.id);
             return (
               <div
                 key={message.id || idx}
@@ -547,9 +560,19 @@ export function ChatMessages({
                                     text={parsedPart.text}
                                     isEditing={editingPartKey === partKey}
                                     showActions={
-                                      showActions && isLastParsedTextPart
+                                      showActions &&
+                                      isLastParsedTextPart &&
+                                      isPersistedMessage
                                     }
-                                    editDisabled={isResponseInProgress}
+                                    editDisabled={
+                                      isResponseInProgress ||
+                                      !isPersistedMessage
+                                    }
+                                    disabledReason={
+                                      !isPersistedMessage
+                                        ? "This response was never saved due to an earlier error. Send a new message instead."
+                                        : undefined
+                                    }
                                     onStartEdit={handleStartEdit}
                                     onCancelEdit={handleCancelEdit}
                                     onSave={handleSaveAssistantMessage}
@@ -568,8 +591,15 @@ export function ChatMessages({
                               partKey={partKey}
                               text={part.text}
                               isEditing={editingPartKey === partKey}
-                              showActions={showActions}
-                              editDisabled={isResponseInProgress}
+                              showActions={showActions && isPersistedMessage}
+                              editDisabled={
+                                isResponseInProgress || !isPersistedMessage
+                              }
+                              disabledReason={
+                                !isPersistedMessage
+                                  ? "This response was never saved due to an earlier error. Send a new message instead."
+                                  : undefined
+                              }
                               onStartEdit={handleStartEdit}
                               onCancelEdit={handleCancelEdit}
                               onSave={handleSaveAssistantMessage}
@@ -588,7 +618,14 @@ export function ChatMessages({
                               partKey={partKey}
                               text={part.text}
                               isEditing={editingPartKey === partKey}
-                              editDisabled={isResponseInProgress}
+                              editDisabled={
+                                isResponseInProgress || !isPersistedMessage
+                              }
+                              disabledReason={
+                                !isPersistedMessage
+                                  ? "This message was never saved due to an earlier error. Resend it to continue the conversation."
+                                  : undefined
+                              }
                               attachments={extractFileAttachments(
                                 message.parts,
                               )}
@@ -656,7 +693,14 @@ export function ChatMessages({
                               partKey={partKey}
                               text=""
                               isEditing={editingPartKey === partKey}
-                              editDisabled={isResponseInProgress}
+                              editDisabled={
+                                isResponseInProgress || !isPersistedMessage
+                              }
+                              disabledReason={
+                                !isPersistedMessage
+                                  ? "This message was never saved due to an earlier error. Resend it to continue the conversation."
+                                  : undefined
+                              }
                               attachments={extractFileAttachments(
                                 message.parts,
                               )}
@@ -980,3 +1024,15 @@ const getHeaderState = ({
   if (toolResultPart) return "output-available";
   return state;
 };
+
+// Basic UUID v4 validator used to detect whether a message has been persisted.
+// Temporary AI SDK UIMessage IDs (e.g. "cYdjg871fcMMDUbD") will fail this check.
+function isUuid(value: string | undefined | null): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}

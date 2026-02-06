@@ -22,6 +22,7 @@ interface EditableAssistantMessageProps {
   isEditing: boolean;
   showActions: boolean;
   editDisabled?: boolean;
+  disabledReason?: string;
   onStartEdit: (partKey: string) => void;
   onCancelEdit: () => void;
   onSave: (
@@ -39,6 +40,7 @@ export function EditableAssistantMessage({
   isEditing,
   showActions,
   editDisabled = false,
+  disabledReason,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -171,6 +173,7 @@ export function EditableAssistantMessage({
             textToCopy={text}
             onEditClick={handleStartEdit}
             editDisabled={editDisabled}
+            disabledReason={disabledReason}
             className="absolute -bottom-1 left-0 opacity-0 group-hover/message:opacity-100 transition-opacity"
           />
         )}

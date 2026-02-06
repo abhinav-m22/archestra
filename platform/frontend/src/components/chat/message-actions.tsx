@@ -1,6 +1,11 @@
 import { Check, Copy, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function MessageActions({
@@ -8,11 +13,13 @@ export function MessageActions({
   onEditClick,
   className,
   editDisabled = false,
+  disabledReason,
 }: {
   className?: string;
   textToCopy: string;
   onEditClick: () => void;
   editDisabled?: boolean;
+  disabledReason?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -21,6 +28,19 @@ export function MessageActions({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const editButton = (
+    <Button
+      size="icon"
+      variant="ghost"
+      className="h-7 w-7 hover:bg-muted"
+      onClick={onEditClick}
+      disabled={editDisabled}
+    >
+      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="sr-only">Edit</span>
+    </Button>
+  );
 
   return (
     <div
@@ -42,16 +62,16 @@ export function MessageActions({
         )}
         <span className="sr-only">{copied ? "Copied" : "Copy"}</span>
       </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-7 w-7 hover:bg-muted"
-        onClick={onEditClick}
-        disabled={editDisabled}
-      >
-        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="sr-only">Edit</span>
-      </Button>
+      {editDisabled && disabledReason ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{editButton}</span>
+          </TooltipTrigger>
+          <TooltipContent sideOffset={6}>{disabledReason}</TooltipContent>
+        </Tooltip>
+      ) : (
+        editButton
+      )}
     </div>
   );
 }

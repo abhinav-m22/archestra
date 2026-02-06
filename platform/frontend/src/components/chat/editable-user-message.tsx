@@ -28,6 +28,7 @@ interface EditableUserMessageProps {
   isEditing: boolean;
   editDisabled?: boolean;
   attachments?: FileAttachment[];
+  disabledReason?: string;
   onStartEdit: (partKey: string, messageId: string) => void;
   onCancelEdit: () => void;
   onSave: (
@@ -45,6 +46,7 @@ export function EditableUserMessage({
   isEditing,
   editDisabled = false,
   attachments = [],
+  disabledReason,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -218,6 +220,7 @@ export function EditableUserMessage({
             textToCopy={text}
             onEditClick={handleStartEdit}
             editDisabled={editDisabled}
+            disabledReason={disabledReason}
             className="absolute -bottom-1 right-0 opacity-0 group-hover/message:opacity-100 transition-opacity"
           />
         )}
