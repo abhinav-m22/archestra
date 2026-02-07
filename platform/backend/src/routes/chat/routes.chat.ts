@@ -346,6 +346,67 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                     "Chat stream error occurred",
                   );
 
+                  // Persist messages despite error so they have a valid ID for editing
+                  (async () => {
+                    try {
+                      if (!conversationId) return;
+
+                      // Get existing messages count to know how many are new
+                      const existingMessages =
+                        await MessageModel.findByConversation(conversationId);
+                      const existingCount = existingMessages.length;
+
+                      // Use input messages to find new user messages
+                      const uiMessages = messages as unknown as UiMessage[];
+                      const newMessages = uiMessages.slice(existingCount);
+
+                      if (newMessages.length > 0) {
+                        // Check if last message has empty parts and strip it if so
+                        let messagesToSave = newMessages;
+                        if (
+                          newMessages.length > 0 &&
+                          newMessages[newMessages.length - 1].parts?.length ===
+                            0
+                        ) {
+                          messagesToSave = newMessages.slice(0, -1);
+                        }
+
+                        if (messagesToSave.length > 0) {
+                          let messagesToStore = messagesToSave as UiMessage[];
+
+                          if (config.features.browserStreamingEnabled) {
+                            // Strip base64 images and large browser tool results before storing
+                            messagesToStore = stripImagesFromMessages(
+                              messagesToSave as UiMessage[],
+                            );
+                          }
+
+                          // Append only new messages with timestamps
+                          const now = Date.now();
+                          const messageData = messagesToStore.map(
+                            (msg, index) => ({
+                              conversationId,
+                              role: msg.role ?? "assistant",
+                              content: msg, // Store entire UIMessage
+                              createdAt: new Date(now + index), // Preserve order
+                            }),
+                          );
+
+                          await MessageModel.bulkCreate(messageData);
+
+                          logger.info(
+                            `Appended ${messagesToSave.length} new messages to conversation ${conversationId} despite error`,
+                          );
+                        }
+                      }
+                    } catch (persistError) {
+                      logger.error(
+                        { persistError },
+                        "Failed to persist messages during error handling",
+                      );
+                    }
+                  })();
+
                   // Map provider error to user-friendly ChatErrorResponse
                   const mappedError: ChatErrorResponse = mapProviderError(
                     error,
