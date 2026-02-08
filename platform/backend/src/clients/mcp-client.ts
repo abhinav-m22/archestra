@@ -6,7 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { isBrowserMcpTool } from "@shared";
+import { isBrowserMcpTool, OAUTH_TOKEN_ID_PREFIX } from "@shared";
 import config from "@/config";
 import logger from "@/logging";
 import { McpServerRuntimeManager } from "@/mcp-server-runtime";
@@ -25,6 +25,7 @@ import type {
   CommonToolCall,
   CommonToolResult,
   InternalMcpCatalog,
+  MCPGatewayAuthMethod,
 } from "@/types";
 import { previewToolResultContent } from "@/utils/tool-result-preview";
 import { K8sAttachTransport } from "./k8s-attach-transport";
@@ -130,13 +131,48 @@ class McpClient {
   private connectionLimiter = new ConnectionLimiter();
 
   /**
+   * Close a cached session for a specific (catalogId, targetMcpServerId, agentId, conversationId).
+   * Should be called when a subagent finishes to free the browser context.
+   */
+  closeSession(
+    catalogId: string,
+    targetMcpServerId: string,
+    agentId: string,
+    conversationId: string,
+  ): void {
+    const connectionKey = `${catalogId}:${targetMcpServerId}:${agentId}:${conversationId}`;
+    const client = this.activeConnections.get(connectionKey);
+    if (client) {
+      try {
+        client.close();
+      } catch (error) {
+        logger.warn(
+          { connectionKey, error },
+          "Error closing MCP session (non-fatal)",
+        );
+      }
+      this.activeConnections.delete(connectionKey);
+      logger.info({ connectionKey }, "Closed cached MCP session");
+    }
+  }
+
+  /**
    * Execute a single tool call against its assigned MCP server
    */
   async executeToolCall(
     toolCall: CommonToolCall,
     agentId: string,
     tokenAuth?: TokenAuthContext,
+    options?: { conversationId?: string },
   ): Promise<CommonToolResult> {
+    // Derive auth info for logging
+    const authInfo = tokenAuth
+      ? {
+          userId: tokenAuth.userId,
+          authMethod: deriveAuthMethodFromTokenAuth(tokenAuth),
+        }
+      : undefined;
+
     // Validate and get tool metadata
     const validationResult = await this.validateAndGetTool(
       toolCall,
@@ -170,9 +206,12 @@ class McpClient {
     }
     const { secrets, secretId } = secretsResult;
 
-    // Build connection cache key using the resolved target server ID
-    // This ensures each user gets their own connection for dynamic credentials
-    const connectionKey = `${catalogItem.id}:${targetMcpServerId}`;
+    // Build connection cache key using the resolved target server ID.
+    // When conversationId is provided, each (agent, conversation) gets its own connection
+    // to enable per-session browser context isolation with streamable-http transport.
+    const connectionKey = options?.conversationId
+      ? `${catalogItem.id}:${targetMcpServerId}:${agentId}:${options.conversationId}`
+      : `${catalogItem.id}:${targetMcpServerId}`;
 
     const executeToolCall = async (
       getTransport: () => Promise<Transport>,
@@ -215,6 +254,7 @@ class McpClient {
           result.content,
           !!result.isError,
           tool.responseModifierTemplate,
+          authInfo,
         );
       } catch (error) {
         const errorMessage =
@@ -280,6 +320,7 @@ class McpClient {
           agentId,
           errorMessage,
           tool.mcpServerName || "unknown",
+          authInfo,
         );
       }
     };
@@ -913,6 +954,7 @@ class McpClient {
     agentId: string,
     error: string,
     mcpServerName: string = "unknown",
+    authInfo?: { userId?: string; authMethod?: MCPGatewayAuthMethod },
   ): Promise<CommonToolResult> {
     const errorResult: CommonToolResult = {
       id: toolCall.id,
@@ -922,7 +964,13 @@ class McpClient {
       error,
     };
 
-    await this.persistToolCall(agentId, mcpServerName, toolCall, errorResult);
+    await this.persistToolCall(
+      agentId,
+      mcpServerName,
+      toolCall,
+      errorResult,
+      authInfo,
+    );
     return errorResult;
   }
 
@@ -936,6 +984,7 @@ class McpClient {
     content: unknown,
     isError: boolean,
     template: string | null,
+    authInfo?: { userId?: string; authMethod?: MCPGatewayAuthMethod },
   ): Promise<CommonToolResult> {
     const modifiedContent = this.applyTemplate(
       content,
@@ -950,7 +999,13 @@ class McpClient {
       isError,
     };
 
-    await this.persistToolCall(agentId, mcpServerName, toolCall, toolResult);
+    await this.persistToolCall(
+      agentId,
+      mcpServerName,
+      toolCall,
+      toolResult,
+      authInfo,
+    );
     return toolResult;
   }
 
@@ -1073,6 +1128,7 @@ class McpClient {
     mcpServerName: string,
     toolCall: CommonToolCall,
     toolResult: CommonToolResult,
+    authInfo?: { userId?: string; authMethod?: MCPGatewayAuthMethod },
   ): Promise<void> {
     // Skip browser tool logging to prevent DB bloat
     if (isBrowserMcpTool(toolCall.name)) {
@@ -1086,6 +1142,8 @@ class McpClient {
         method: "tools/call",
         toolCall,
         toolResult,
+        userId: authInfo?.userId ?? null,
+        authMethod: authInfo?.authMethod ?? null,
       });
 
       const logData: {
@@ -1248,6 +1306,19 @@ class McpClient {
     await Promise.all([...disconnectPromises, ...activeDisconnectPromises]);
     this.activeConnections.clear();
   }
+}
+
+/**
+ * Derive a human-readable auth method string from token auth context.
+ * Kept here to avoid circular imports with mcp-gateway.utils.ts.
+ */
+function deriveAuthMethodFromTokenAuth(
+  tokenAuth: TokenAuthContext,
+): MCPGatewayAuthMethod {
+  if (tokenAuth.tokenId.startsWith(OAUTH_TOKEN_ID_PREFIX)) return "oauth";
+  if (tokenAuth.isUserToken) return "user_token";
+  if (tokenAuth.isOrganizationToken) return "org_token";
+  return "team_token";
 }
 
 // Singleton instance
