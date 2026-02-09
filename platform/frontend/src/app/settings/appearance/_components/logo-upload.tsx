@@ -51,9 +51,14 @@ export function LogoUpload({ currentLogo, onLogoChange }: LogoUploadProps) {
         setPreview(base64);
 
         try {
-          await uploadOrganizationLogoMutation.mutateAsync({
+          const result = await uploadOrganizationLogoMutation.mutateAsync({
             logo: base64,
           });
+
+          if (!result) {
+            throw new Error("Upload failed");
+          }
+
           onLogoChange?.();
         } catch (error) {
           console.error("Failed to upload logo:", error);
