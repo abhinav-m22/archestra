@@ -1156,7 +1156,7 @@ export default class K8sDeployment {
       baseUrl = `http://${serviceName}.${this.namespace}.svc.cluster.local:${httpPort}`;
     } else if (configuredNodePort) {
       // Local dev with fixed nodePort: use it directly (no need to read from service)
-      baseUrl = `http://localhost:${configuredNodePort}`;
+      baseUrl = `http://${config.orchestrator.kubernetes.k8sNodeHost || "localhost"}:${configuredNodePort}`;
     } else {
       // Local dev: get NodePort from service
       const serviceName = `${this.deploymentName}-service`;
@@ -1171,7 +1171,7 @@ export default class K8sDeployment {
           throw new Error(`Service ${serviceName} has no NodePort assigned`);
         }
 
-        baseUrl = `http://localhost:${nodePort}`;
+        baseUrl = `http://${config.orchestrator.kubernetes.k8sNodeHost || "localhost"}:${nodePort}`;
       } catch (error) {
         logger.error(
           { err: error },
@@ -2145,6 +2145,35 @@ export default class K8sDeployment {
   async getRunningPodName(): Promise<string | undefined> {
     const pod = await this.findPodForDeployment();
     return pod?.metadata?.name;
+  }
+
+  /**
+   * Get an HTTP endpoint URL pinned to the currently running pod.
+   * Useful for sticky session resumption in multi-replica streamable-http deployments.
+   */
+  async getRunningPodHttpEndpoint(): Promise<
+    { endpointUrl: string; podName: string } | undefined
+  > {
+    const needsHttp = await this.needsHttpPort();
+    if (!needsHttp) {
+      return undefined;
+    }
+
+    const pod = await this.findPodForDeployment();
+    const podIp = pod?.status?.podIP;
+    const podName = pod?.metadata?.name;
+    if (!podIp || !podName) {
+      return undefined;
+    }
+
+    const catalogItem = await this.getCatalogItem();
+    const httpPort = catalogItem?.localConfig?.httpPort || 8080;
+    const httpPath = catalogItem?.localConfig?.httpPath || "/mcp";
+
+    return {
+      endpointUrl: `http://${podIp}:${httpPort}${httpPath}`,
+      podName,
+    };
   }
 
   /**
