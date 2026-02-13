@@ -465,7 +465,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                       { stringifyError, errorCode: mappedError.code },
                       "Failed to stringify mapped error, returning minimal error",
                     );
-
+                    // Return a minimal error response without the raw error
                     return JSON.stringify({
                       code: mappedError.code,
                       message: mappedError.message,
@@ -473,7 +473,6 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                     });
                   }
                 },
-
                 onFinish: async ({ messages: finalMessages }) => {
                   removeAbortListeners();
                   if (!conversationId) return;
