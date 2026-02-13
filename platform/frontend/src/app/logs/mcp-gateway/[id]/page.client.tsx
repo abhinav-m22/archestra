@@ -1,6 +1,6 @@
 "use client";
 
-import type { archestraApiTypes } from "@shared";
+import { type archestraApiTypes, parseFullToolName } from "@shared";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ErrorBoundary } from "@/app/_parts/error-boundary";
@@ -148,7 +148,9 @@ function McpToolCallDetail({
                   <div className="text-sm text-muted-foreground mb-2">
                     Tool Name
                   </div>
-                  <div className="font-medium font-mono">{toolCall.name}</div>
+                  <div className="font-medium font-mono">
+                    {parseFullToolName(toolCall.name).toolName || toolCall.name}
+                  </div>
                 </div>
               )}
               <div>
@@ -174,6 +176,46 @@ function McpToolCallDetail({
                     {formatAuthMethod(mcpToolCall.authMethod)}
                   </Badge>
                 </div>
+              )}
+              {mcpToolCall.externalIdentity && (
+                <>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      External Identity (sub)
+                    </div>
+                    <div className="font-medium font-mono text-sm">
+                      {mcpToolCall.externalIdentity.sub}
+                    </div>
+                  </div>
+                  {mcpToolCall.externalIdentity.email && (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-2">
+                        External Email
+                      </div>
+                      <div className="font-medium">
+                        {mcpToolCall.externalIdentity.email}
+                      </div>
+                    </div>
+                  )}
+                  {mcpToolCall.externalIdentity.name && (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-2">
+                        External Name
+                      </div>
+                      <div className="font-medium">
+                        {mcpToolCall.externalIdentity.name}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Identity Provider
+                    </div>
+                    <div className="font-medium">
+                      {mcpToolCall.externalIdentity.idpName}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -49,7 +49,7 @@ import {
   fetchConversationEnabledTools,
   useConversation,
   useCreateConversation,
-  useHasPlaywrightMcpTools,
+  useStopChatStream,
   useUpdateConversation,
   useUpdateConversationEnabledTools,
 } from "@/lib/chat.query";
@@ -423,17 +423,6 @@ export default function ChatPage() {
     ? (conversation?.agentId ?? conversation?.agent?.id)
     : (initialAgentId ?? undefined);
 
-  // Check if Playwright MCP is available for browser panel and get install function
-  const {
-    hasPlaywrightMcp,
-    reinstallRequired,
-    installationFailed,
-    playwrightServerId,
-    isInstalling: isInstallingBrowser,
-    installBrowser,
-    reinstallBrowser,
-  } = useHasPlaywrightMcpTools(browserToolsAgentId);
-
   // Check if browser streaming feature is enabled
   const isBrowserStreamingEnabled = useFeatureFlag("browserStreamingEnabled");
 
@@ -442,6 +431,9 @@ export default function ChatPage() {
 
   // Update enabled tools mutation (for applying pending actions)
   const updateEnabledToolsMutation = useUpdateConversationEnabledTools();
+
+  // Stop chat stream mutation (signals backend to abort subagents)
+  const stopChatStreamMutation = useStopChatStream();
 
   // Persist artifact panel state
   const toggleArtifactPanel = useCallback(() => {
@@ -692,18 +684,22 @@ export default function ChatPage() {
   const handleSubmit: PromptInputProps["onSubmit"] = (message, e) => {
     e.preventDefault();
     if (status === "submitted" || status === "streaming") {
-      stop?.();
+      if (conversationId) {
+        // Set the cache flag first, THEN close the connection so the
+        // connection-close handler on the backend finds the flag.
+        stopChatStreamMutation.mutateAsync(conversationId).finally(() => {
+          stop?.();
+        });
+      } else {
+        stop?.();
+      }
+      return;
     }
 
     const hasText = message.text?.trim();
     const hasFiles = message.files && message.files.length > 0;
 
-    if (
-      !sendMessage ||
-      (!hasText && !hasFiles) ||
-      status === "submitted" ||
-      status === "streaming"
-    ) {
+    if (!sendMessage || (!hasText && !hasFiles)) {
       return;
     }
 
@@ -1089,7 +1085,6 @@ export default function ChatPage() {
               </div>
               {/* Right side - show/hide controls */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-muted-foreground">Show:</span>
                 <Button
                   variant={isArtifactOpen ? "secondary" : "ghost"}
                   size="sm"
@@ -1309,16 +1304,7 @@ export default function ChatPage() {
         isBrowserOpen={isBrowserPanelOpen && isBrowserStreamingEnabled}
         onBrowserClose={closeBrowserPanel}
         conversationId={conversationId}
-        isInstallingBrowser={isInstallingBrowser}
-        hasPlaywrightMcp={hasPlaywrightMcp}
-        onInstallBrowser={installBrowser}
-        reinstallRequired={reinstallRequired}
-        installationFailed={installationFailed}
-        onReinstallBrowser={
-          playwrightServerId
-            ? () => reinstallBrowser(playwrightServerId)
-            : undefined
-        }
+        agentId={browserToolsAgentId}
         onCreateConversationWithUrl={handleCreateConversationWithUrl}
         isCreatingConversation={createConversationMutation.isPending}
         initialNavigateUrl={pendingBrowserUrl}

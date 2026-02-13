@@ -1,15 +1,23 @@
-# Build KinD from source with latest Go 1.25.x to fix CVE-2025-61726
-# (KinD v0.31.0 pre-built binaries use Go 1.25.5 which has the vulnerability)
-FROM alpine:3.23 AS kind-builder
+# Build KinD and Docker CLI from source with Go 1.25.7 to fix CVE-2025-61726, CVE-2025-68121
+# Alpine 3.23 only has Go 1.25.6, so we use the official golang image for 1.25.7+
+# KinD v0.31.0 pre-built binaries use Go 1.25.5 which has the vulnerability
+# Alpine 3.23's docker-cli (29.1.3) is compiled with Go 1.25.6 (vulnerable to CVE-2025-68121)
+FROM golang:1.25.7-alpine AS go-builder
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != "amd64" ] && [ "$TARGETARCH" != "arm64" ]; then \
         echo "ERROR: Unsupported architecture: $TARGETARCH. KinD is only available for amd64 and arm64."; \
         exit 1; \
     fi
-RUN apk add --no-cache 'go~=1.25' git
+RUN apk add --no-cache git
 RUN git clone --depth 1 --branch v0.31.0 https://github.com/kubernetes-sigs/kind.git /kind && \
     cd /kind && \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /kind-binary .
+RUN git clone --depth 1 --branch v29.1.3 https://github.com/docker/cli.git /docker-cli && \
+    cd /docker-cli && \
+    cp vendor.mod go.mod && cp vendor.sum go.sum && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -mod=vendor \
+    -ldflags '-X github.com/docker/cli/cli/version.Version=29.1.3' \
+    -o /docker-binary ./cmd/docker
 
 FROM node:24-alpine3.23 AS base
 
@@ -139,11 +147,11 @@ RUN apk --no-cache upgrade && \
     rm -rf /tmp/*
 
 # Install KinD (Kubernetes in Docker) and docker-cli for embedded K8s cluster support
-# KinD binary is built from source in kind-builder to address CVE-2025-61726
-RUN apk add --no-cache docker-cli
-COPY --from=kind-builder /kind-binary /usr/local/bin/kind
-RUN chmod +x /usr/local/bin/kind
-# TODO: Once KinD releases a version compiled with Go >= 1.25.6, remove the kind-builder stage
+# Both binaries are built from source in go-builder with Go 1.25.7 to fix CVE-2025-68121
+COPY --from=go-builder /docker-binary /usr/local/bin/docker
+COPY --from=go-builder /kind-binary /usr/local/bin/kind
+RUN chmod +x /usr/local/bin/kind /usr/local/bin/docker
+# TODO: Once KinD releases a version compiled with Go >= 1.25.7, remove the kind-builder stage
 # at the top of this file and restore the pre-built binary download below for faster builds.
 # Track releases at: https://github.com/kubernetes-sigs/kind/releases
 # RUN ARCH=$(uname -m) && \
@@ -160,6 +168,15 @@ RUN chmod +x /usr/local/bin/kind
 #     wget -O /usr/local/bin/kind "${KIND_URL}" && \
 #     echo "${KIND_SHA256}  /usr/local/bin/kind" | sha256sum -c - && \
 #     chmod +x /usr/local/bin/kind
+
+# Install ngrok for optional tunneling (used with ARCHESTRA_NGROK_AUTH_TOKEN)
+ARG TARGETARCH
+RUN NGROK_URL="https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-${TARGETARCH}.tgz" && \
+    wget -qO /tmp/ngrok.tgz "${NGROK_URL}" && \
+    tar -xzf /tmp/ngrok.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/ngrok && \
+    ngrok version && \
+    rm -f /tmp/ngrok.tgz
 
 # Install supervisor from edge repository to address CVE-2023-27482
 # https://nvd.nist.gov/vuln/detail/cve-2023-27482
@@ -228,7 +245,7 @@ pidfile=/var/run/supervisord.pid
 
 [program:backend]
 directory=/app/backend
-command=/bin/sh -c "sleep 5 && node dist/standalone-scripts/run-migrations.mjs && node dist/server.mjs"
+command=/bin/sh -c "sleep 5 && pnpm db:migrate && node dist/server.mjs"
 autostart=true
 autorestart=true
 stdout_logfile=/dev/stdout
@@ -361,7 +378,50 @@ if [ "$ARCHESTRA_QUICKSTART" = "true" ]; then
     else
         echo "Creating KinD cluster '${CLUSTER_NAME}'..."
         if ! kind create cluster --name "${CLUSTER_NAME}" --wait 120s; then
-            echo "ERROR: Failed to create KinD cluster"
+            echo ""
+            echo "=== KinD cluster creation failed ==="
+            echo ""
+
+            # Detect Docker environment
+            DOCKER_SERVER_OS=$(docker info --format '{{.OperatingSystem}}' 2>/dev/null || echo "unknown")
+            DOCKER_SERVER_PLATFORM=$(docker info --format '{{.OSType}}/{{.Architecture}}' 2>/dev/null || echo "unknown")
+            DOCKER_MEMORY_BYTES=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo "0")
+            DOCKER_MEMORY_GB=$(awk "BEGIN {printf \"%.1f\", ${DOCKER_MEMORY_BYTES:-0} / 1073741824}")
+
+            echo "Docker environment:"
+            echo "  Server OS: ${DOCKER_SERVER_OS}"
+            echo "  Platform:  ${DOCKER_SERVER_PLATFORM}"
+            echo "  Memory:    ${DOCKER_MEMORY_GB} GB"
+            echo ""
+
+            IS_DOCKER_DESKTOP=false
+            if echo "${DOCKER_SERVER_OS}" | grep -qi "docker desktop"; then
+                IS_DOCKER_DESKTOP=true
+            fi
+
+            echo "Troubleshooting steps:"
+            if [ "${IS_DOCKER_DESKTOP}" = "true" ]; then
+                echo "  1. Increase Docker Desktop memory to at least 4 GB"
+                echo "     (Settings > Resources > Memory)"
+                if echo "${DOCKER_SERVER_PLATFORM}" | grep -qi "amd64"; then
+                    echo "  2. Ensure Docker Desktop is using the WSL 2 backend"
+                    echo "     (Settings > General > Use the WSL 2 based engine)"
+                fi
+                echo "  3. Restart Docker Desktop and try again"
+                echo "  4. Ensure Docker has sufficient disk space"
+                echo "     Run: docker system prune -f"
+            else
+                echo "  1. Ensure Docker has at least 4 GB of memory available"
+                echo "  2. Ensure Docker has sufficient disk space"
+                echo "     Run: docker system prune -f"
+                echo "  3. Restart Docker and try again"
+            fi
+            echo ""
+            echo "NOTE: You do NOT need to enable Kubernetes in Docker Desktop settings."
+            echo "      Archestra uses KinD (Kubernetes in Docker) which manages its own cluster."
+            echo ""
+            echo "For help: https://github.com/archestra-ai/archestra/issues"
+
             exit 1
         fi
         echo "KinD cluster created successfully"
@@ -498,6 +558,73 @@ awk -v url="$ESCAPED_DATABASE_URL" '{gsub(/DATABASE_URL="[^"]*"/, "DATABASE_URL=
 # Propagate analytics setting to frontend (enabled by default, set to "disabled" to opt-out)
 if [ -n "$ARCHESTRA_ANALYTICS" ]; then
   sed -i "s|environment=\(.*\)|environment=\1,NEXT_PUBLIC_ARCHESTRA_ANALYTICS=\"${ARCHESTRA_ANALYTICS}\"|g" /etc/supervisord.conf
+fi
+
+# Configure ngrok tunnel if auth token is provided
+if [ -n "$ARCHESTRA_NGROK_AUTH_TOKEN" ]; then
+    echo "ngrok auth token detected - enabling tunnel to port 3000"
+    ngrok config add-authtoken "$ARCHESTRA_NGROK_AUTH_TOKEN"
+
+    # Build ngrok command with optional static domain
+    if [ -n "$ARCHESTRA_NGROK_DOMAIN" ]; then
+        NGROK_CMD="ngrok http 3000 --log=stdout --log-format=term --domain=${ARCHESTRA_NGROK_DOMAIN}"
+        echo "Using custom ngrok domain: ${ARCHESTRA_NGROK_DOMAIN}"
+    else
+        NGROK_CMD="ngrok http 3000 --log=stdout --log-format=term"
+    fi
+
+    # Append ngrok program to supervisord config
+    cat >> /etc/supervisord.conf <<NGROK_CONF
+
+[program:ngrok]
+command=/bin/sh -c "sleep 10 && ${NGROK_CMD}"
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+priority=25
+NGROK_CONF
+
+    # If no explicit domain, detect the dynamically assigned ngrok domain
+    # after ngrok starts. Write it to a file so the backend can read it.
+    if [ -z "$ARCHESTRA_NGROK_DOMAIN" ]; then
+        cat > /app/detect-ngrok-domain.sh <<'DETECT_SCRIPT'
+#!/bin/sh
+# Poll ngrok API to discover the dynamically assigned tunnel URL
+for i in $(seq 1 30); do
+    NGROK_RESPONSE=$(wget -qO- http://localhost:4040/api/tunnels 2>/dev/null || true)
+    if [ -n "$NGROK_RESPONSE" ]; then
+        TUNNEL_URL=$(echo "$NGROK_RESPONSE" | sed -n 's/.*"public_url":"\([^"]*\)".*/\1/p' | head -1)
+        if [ -n "$TUNNEL_URL" ]; then
+            # Extract domain from URL (remove https:// prefix)
+            NGROK_DOMAIN=$(echo "$TUNNEL_URL" | sed 's|https://||')
+            echo "Detected ngrok domain: ${NGROK_DOMAIN}"
+            echo "$NGROK_DOMAIN" > /app/data/.ngrok_domain
+            exit 0
+        fi
+    fi
+    sleep 1
+done
+echo "Warning: Could not detect ngrok domain after 30 seconds"
+DETECT_SCRIPT
+        chmod +x /app/detect-ngrok-domain.sh
+
+        cat >> /etc/supervisord.conf <<DETECT_CONF
+
+[program:detect-ngrok-domain]
+command=/bin/sh -c "sleep 15 && /app/detect-ngrok-domain.sh"
+autostart=true
+autorestart=false
+startsecs=0
+priority=26
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+DETECT_CONF
+    fi
 fi
 
 # Add startup banner to supervisord (sleeps 12s to ensure it prints after Next.js logs)

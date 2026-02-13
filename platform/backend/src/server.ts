@@ -575,6 +575,7 @@ const start = async () => {
     const labelKeys = await AgentLabelModel.getAllKeys();
     metrics.llm.initializeMetrics(labelKeys);
     metrics.mcp.initializeMcpMetrics(labelKeys);
+    metrics.agentExecution.initializeAgentExecutionMetrics(labelKeys);
 
     // Start metrics server
     await startMetricsServer();
@@ -664,6 +665,12 @@ const start = async () => {
     fastify.get("/openapi.json", async () => fastify.swagger());
     registerHealthEndpoint(fastify);
     registerReadinessEndpoint(fastify);
+
+    if (process.env.ENABLE_E2E_TEST_ENDPOINTS === "true") {
+      fastify.get("/test", async () => ({
+        value: process.env.TEST_VALUE ?? null,
+      }));
+    }
 
     // Register all API routes (eeRoutes already loaded at module level)
     await registerApiRoutes(fastify);
