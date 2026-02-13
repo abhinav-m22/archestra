@@ -457,7 +457,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                     },
                     "Returning mapped error to frontend via stream",
                   );
-                  
+
                   // mapProviderError safely serializes raw errors, but add defensive try-catch
                   try {
                     return JSON.stringify(mappedError);
