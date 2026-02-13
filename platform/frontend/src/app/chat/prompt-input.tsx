@@ -1,10 +1,16 @@
 "use client";
 
-import { E2eTestId } from "@shared";
+import {
+  E2eTestId,
+  getAcceptedFileTypes,
+  getSupportedFileTypesDescription,
+  type ModelInputModality,
+  supportsFileUploads,
+} from "@shared";
 import type { ChatStatus } from "ai";
 import { PaperclipIcon, Plus } from "lucide-react";
 import type { FormEvent } from "react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   PromptInput,
   PromptInputAttachment,
@@ -25,6 +31,7 @@ import {
 import { AgentToolsDisplay } from "@/components/chat/agent-tools-display";
 import { ChatApiKeySelector } from "@/components/chat/chat-api-key-selector";
 import { ChatToolsDisplay } from "@/components/chat/chat-tools-display";
+import { ContextIndicator } from "@/components/chat/context-indicator";
 import { KnowledgeGraphUploadIndicator } from "@/components/chat/knowledge-graph-upload-indicator";
 import { ModelSelector } from "@/components/chat/model-selector";
 import { Button } from "@/components/ui/button";
@@ -58,6 +65,11 @@ interface ArchestraPromptInputProps {
   initialApiKeyId?: string | null;
   /** Callback for API key change in initial chat mode (no conversation) */
   onApiKeyChange?: (apiKeyId: string) => void;
+  /** Callback when user selects an API key with a different provider */
+  onProviderChange?: (
+    provider: SupportedChatProvider,
+    apiKeyId: string,
+  ) => void;
   // Ref for autofocus
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   /** Whether file uploads are allowed (controlled by organization setting) */
@@ -66,6 +78,14 @@ interface ArchestraPromptInputProps {
   isModelsLoading?: boolean;
   /** Callback to open edit agent dialog */
   onEditAgent?: () => void;
+  /** Estimated tokens used in the conversation (for context indicator) */
+  tokensUsed?: number;
+  /** Maximum context length of the selected model (for context indicator) */
+  maxContextLength?: number | null;
+  /** Input modalities supported by the selected model (for file type filtering) */
+  inputModalities?: ModelInputModality[] | null;
+  /** Agent's configured LLM API key ID - passed to ChatApiKeySelector */
+  agentLlmApiKeyId?: string | null;
 }
 
 // Inner component that has access to the controller context
@@ -81,10 +101,15 @@ const PromptInputContent = ({
   currentProvider,
   initialApiKeyId,
   onApiKeyChange,
+  onProviderChange,
   textareaRef: externalTextareaRef,
   allowFileUploads = false,
   isModelsLoading = false,
   onEditAgent,
+  tokensUsed = 0,
+  maxContextLength,
+  inputModalities,
+  agentLlmApiKeyId,
 }: Omit<ArchestraPromptInputProps, "onSubmit"> & {
   onSubmit: ArchestraPromptInputProps["onSubmit"];
 }) => {
@@ -92,6 +117,12 @@ const PromptInputContent = ({
   const textareaRef = externalTextareaRef ?? internalTextareaRef;
   const controller = usePromptInputController();
   const attachments = usePromptInputAttachments();
+
+  // Derive file upload capabilities from model input modalities
+  const modelSupportsFiles = supportsFileUploads(inputModalities);
+  const acceptedFileTypes = getAcceptedFileTypes(inputModalities);
+  const supportedTypesDescription =
+    getSupportedFileTypesDescription(inputModalities);
 
   // Check if agent has tools or delegations
   const { data: tools = [] } = useProfileToolsWithIds(agentId);
@@ -101,6 +132,41 @@ const PromptInputContent = ({
   const { data: canUpdateOrganization } = useHasPermissions({
     organization: ["update"],
   });
+
+  const storageKey = conversationId
+    ? `archestra_chat_draft_${conversationId}`
+    : `archestra_chat_draft_new_${agentId}`;
+
+  const isRestored = useRef(false);
+
+  // Restore draft on mount or conversation change
+  useEffect(() => {
+    isRestored.current = false;
+    const savedDraft = localStorage.getItem(storageKey);
+    if (savedDraft) {
+      controller.textInput.setInput(savedDraft);
+    } else {
+      controller.textInput.setInput("");
+    }
+
+    // Set restored bit after a tick to ensure state update propagates
+    const timeout = setTimeout(() => {
+      isRestored.current = true;
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [storageKey, controller.textInput.setInput]);
+
+  // Save draft on change
+  useEffect(() => {
+    if (!isRestored.current) return;
+
+    const value = controller.textInput.value;
+    if (value) {
+      localStorage.setItem(storageKey, value);
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+  }, [controller.textInput.value, storageKey]);
 
   // Handle speech transcription by updating controller state
   const handleTranscriptionChange = useCallback(
@@ -115,8 +181,26 @@ const PromptInputContent = ({
   const hasDelegatedAgents = delegatedAgents.length > 0;
   const hasContent = hasTools || hasDelegatedAgents;
 
+  // Determine if file uploads should be shown
+  // 1. Organization must allow file uploads (allowFileUploads)
+  // 2. Model must support at least one file type (modelSupportsFiles)
+  const showFileUploadButton = allowFileUploads && modelSupportsFiles;
+
+  const handleWrappedSubmit = useCallback(
+    (message: PromptInputMessage, e: FormEvent<HTMLFormElement>) => {
+      localStorage.removeItem(storageKey);
+      onSubmit(message, e);
+    },
+    [onSubmit, storageKey],
+  );
+
   return (
-    <PromptInput globalDrop multiple onSubmit={onSubmit}>
+    <PromptInput
+      globalDrop
+      multiple
+      onSubmit={handleWrappedSubmit}
+      accept={acceptedFileTypes}
+    >
       {agentId && (
         <PromptInputHeader>
           {hasContent ? (
@@ -160,23 +244,33 @@ const PromptInputContent = ({
           ref={textareaRef}
           className="px-4"
           disableEnterSubmit={status !== "ready" && status !== "error"}
+          data-testid={E2eTestId.ChatPromptTextarea}
         />
       </PromptInputBody>
       <PromptInputFooter>
         <PromptInputTools>
           {/* File attachment button - direct click opens file browser, shows tooltip when disabled */}
-          {allowFileUploads ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2"
-              onClick={() => attachments.openFileDialog()}
-              data-testid={E2eTestId.ChatFileUploadButton}
-            >
-              <PaperclipIcon className="size-4" />
-              <span className="sr-only">Attach files</span>
-            </Button>
+          {showFileUploadButton ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => attachments.openFileDialog()}
+                  data-testid={E2eTestId.ChatFileUploadButton}
+                >
+                  <PaperclipIcon className="size-4" />
+                  <span className="sr-only">Attach files</span>
+                </Button>
+              </TooltipTrigger>
+              {supportedTypesDescription && (
+                <TooltipContent side="top" sideOffset={4}>
+                  Supports: {supportedTypesDescription}
+                </TooltipContent>
+              )}
+            </Tooltip>
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -190,19 +284,23 @@ const PromptInputContent = ({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" sideOffset={4}>
-                {canUpdateOrganization ? (
-                  <span>
-                    File uploads are disabled.{" "}
-                    <a
-                      href="/settings/security"
-                      className="underline hover:no-underline"
-                      aria-label="Enable file uploads in security settings"
-                    >
-                      Enable in settings
-                    </a>
-                  </span>
+                {!allowFileUploads ? (
+                  canUpdateOrganization ? (
+                    <span>
+                      File uploads are disabled.{" "}
+                      <a
+                        href="/settings/security"
+                        className="underline hover:no-underline"
+                        aria-label="Enable file uploads in security settings"
+                      >
+                        Enable in settings
+                      </a>
+                    </span>
+                  ) : (
+                    "File uploads are disabled by your administrator"
+                  )
                 ) : (
-                  "File uploads are disabled by your administrator"
+                  "This model does not support file uploads"
                 )}
               </TooltipContent>
             </Tooltip>
@@ -218,6 +316,13 @@ const PromptInputContent = ({
               }
             }}
           />
+          {tokensUsed > 0 && maxContextLength && (
+            <ContextIndicator
+              tokensUsed={tokensUsed}
+              maxTokens={maxContextLength}
+              size="sm"
+            />
+          )}
           {(conversationId || onApiKeyChange) && (
             <ChatApiKeySelector
               conversationId={conversationId}
@@ -229,7 +334,9 @@ const PromptInputContent = ({
               }
               messageCount={messageCount}
               onApiKeyChange={onApiKeyChange}
+              onProviderChange={onProviderChange}
               isModelsLoading={isModelsLoading}
+              agentLlmApiKeyId={agentLlmApiKeyId}
               onOpenChange={(open) => {
                 if (!open) {
                   setTimeout(() => {
@@ -267,10 +374,15 @@ const ArchestraPromptInput = ({
   currentProvider,
   initialApiKeyId,
   onApiKeyChange,
+  onProviderChange,
   textareaRef,
   allowFileUploads = false,
   isModelsLoading = false,
   onEditAgent,
+  tokensUsed = 0,
+  maxContextLength,
+  inputModalities,
+  agentLlmApiKeyId,
 }: ArchestraPromptInputProps) => {
   return (
     <div className="flex size-full flex-col justify-end">
@@ -287,10 +399,15 @@ const ArchestraPromptInput = ({
           currentProvider={currentProvider}
           initialApiKeyId={initialApiKeyId}
           onApiKeyChange={onApiKeyChange}
+          onProviderChange={onProviderChange}
           textareaRef={textareaRef}
           allowFileUploads={allowFileUploads}
           isModelsLoading={isModelsLoading}
           onEditAgent={onEditAgent}
+          tokensUsed={tokensUsed}
+          maxContextLength={maxContextLength}
+          inputModalities={inputModalities}
+          agentLlmApiKeyId={agentLlmApiKeyId}
         />
       </PromptInputProvider>
     </div>

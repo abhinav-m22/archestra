@@ -1,18 +1,15 @@
 "use client";
 
-import {
-  type archestraApiTypes,
-  MCP_SERVER_TOOL_NAME_SEPARATOR,
-} from "@shared";
+import type { archestraApiTypes } from "@shared";
 import { Loader2, Search, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ToolChecklist } from "@/components/agent-tools-editor";
 import {
   DYNAMIC_CREDENTIAL_VALUE,
   TokenSelect,
 } from "@/components/token-select";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +24,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useProfilesQuery } from "@/lib/agent.query";
+import { useProfiles } from "@/lib/agent.query";
+import { useInvalidateToolAssignmentQueries } from "@/lib/agent-tools.hook";
 import {
   useAllProfileTools,
   useBulkAssignTools,
@@ -86,8 +84,8 @@ export function McpAssignmentsDialog({
   }, [assignedToolsData, catalogId]);
 
   // Fetch all profiles
-  const { data: allProfiles = [], isLoading: isLoadingProfiles } =
-    useProfilesQuery();
+  const { data: allProfiles = [], isPending: isLoadingProfiles } =
+    useProfiles();
 
   // Fetch available credentials for this catalog
   const credentials = useMcpServersGroupedByCatalog({ catalogId });
@@ -133,6 +131,7 @@ export function McpAssignmentsDialog({
   const [agentsSearchOpen, setAgentsSearchOpen] = useState(false);
   const [agentsShowAll, setAgentsShowAll] = useState(false);
 
+  const invalidateAllQueries = useInvalidateToolAssignmentQueries();
   const unassignTool = useUnassignTool();
   const bulkAssign = useBulkAssignTools();
   const patchTool = useProfileToolPatchMutation();
@@ -173,6 +172,8 @@ export function McpAssignmentsDialog({
   // Save all pending changes
   const handleSaveAll = async () => {
     setIsSaving(true);
+    const affectedAgentIds = new Set<string>();
+
     try {
       for (const [profileId, changes] of pendingChanges) {
         const current = assignmentsByProfile.get(profileId);
@@ -189,15 +190,21 @@ export function McpAssignmentsDialog({
         const useDynamicCredential =
           changes.credentialId === DYNAMIC_CREDENTIAL_VALUE;
 
-        // Remove tools
+        // Track affected agents for invalidation
+        if (toAdd.length > 0 || toRemove.length > 0) {
+          affectedAgentIds.add(profileId);
+        }
+
+        // Remove tools (skip invalidation, will do it once at the end)
         for (const toolId of toRemove) {
           await unassignTool.mutateAsync({
             agentId: profileId,
             toolId,
+            skipInvalidation: true,
           });
         }
 
-        // Add new tools
+        // Add new tools (skip invalidation, will do it once at the end)
         if (toAdd.length > 0) {
           const assignments = toAdd.map((toolId) => ({
             agentId: profileId,
@@ -213,7 +220,7 @@ export function McpAssignmentsDialog({
             useDynamicTeamCredential: useDynamicCredential,
           }));
 
-          await bulkAssign.mutateAsync({ assignments });
+          await bulkAssign.mutateAsync({ assignments, skipInvalidation: true });
         }
 
         // Update credential for existing tools if it changed
@@ -222,6 +229,7 @@ export function McpAssignmentsDialog({
           current?.tools.length &&
           toRemove.length === 0
         ) {
+          affectedAgentIds.add(profileId);
           const toolsToUpdate = current.tools.filter(
             (at) => !toRemove.includes(at.tool.id),
           );
@@ -237,10 +245,14 @@ export function McpAssignmentsDialog({
                   ? changes.credentialId
                   : null,
               useDynamicTeamCredential: useDynamicCredential,
+              skipInvalidation: true,
             });
           }
         }
       }
+
+      // Invalidate all queries once at the end
+      invalidateAllQueries(affectedAgentIds);
 
       toast.success("Changes saved");
       setPendingChanges(new Map());
@@ -248,6 +260,8 @@ export function McpAssignmentsDialog({
     } catch (error) {
       console.error("Failed to save changes:", error);
       toast.error("Failed to save changes");
+      // Still invalidate on error to ensure UI is in sync
+      invalidateAllQueries(affectedAgentIds);
     } finally {
       setIsSaving(false);
     }
@@ -566,7 +580,7 @@ function ProfileAssignmentPill({
           size="sm"
           className={cn(
             "h-8 px-3 gap-1.5 text-xs max-w-[250px]",
-            hasNoAssignments && "border-dashed",
+            hasNoAssignments && "border-dashed opacity-50",
             hasChanges && "border-primary",
           )}
         >
@@ -577,13 +591,14 @@ function ProfileAssignmentPill({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[420px] p-0"
+        className="w-[420px] max-h-[min(500px,var(--radix-popover-content-available-height))] p-0 flex flex-col overflow-hidden"
         side="bottom"
         align="start"
         sideOffset={8}
         avoidCollisions
+        collisionPadding={16}
       >
-        <div className="p-4 border-b flex items-start justify-between gap-2">
+        <div className="p-4 border-b flex items-start justify-between gap-2 shrink-0">
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold truncate">{profile.name}</h4>
             <p className="text-sm text-muted-foreground mt-1">
@@ -602,7 +617,7 @@ function ProfileAssignmentPill({
 
         {/* Credential Selector */}
         {showCredentialSelector && (
-          <div className="p-4 border-b space-y-2">
+          <div className="p-4 border-b space-y-2 shrink-0">
             <Label className="text-sm font-medium">Credential</Label>
             <TokenSelect
               catalogId={catalogId}
@@ -614,118 +629,14 @@ function ProfileAssignmentPill({
         )}
 
         {/* Tool Checklist */}
-        <ToolChecklist
-          tools={allTools}
-          selectedToolIds={selectedToolIds}
-          onSelectionChange={handleToolToggle}
-        />
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <ToolChecklist
+            tools={allTools}
+            selectedToolIds={selectedToolIds}
+            onSelectionChange={handleToolToggle}
+          />
+        </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-interface ToolChecklistProps {
-  tools: CatalogTool[];
-  selectedToolIds: Set<string>;
-  onSelectionChange: (selectedIds: Set<string>) => void;
-}
-
-function ToolChecklist({
-  tools,
-  selectedToolIds,
-  onSelectionChange,
-}: ToolChecklistProps) {
-  const allSelected = tools.every((tool) => selectedToolIds.has(tool.id));
-  const noneSelected = tools.every((tool) => !selectedToolIds.has(tool.id));
-  const selectedCount = tools.filter((t) => selectedToolIds.has(t.id)).length;
-
-  const handleToggle = (toolId: string) => {
-    const newSet = new Set(selectedToolIds);
-    if (newSet.has(toolId)) {
-      newSet.delete(toolId);
-    } else {
-      newSet.add(toolId);
-    }
-    onSelectionChange(newSet);
-  };
-
-  const handleSelectAll = () => {
-    onSelectionChange(new Set(tools.map((t) => t.id)));
-  };
-
-  const handleDeselectAll = () => {
-    onSelectionChange(new Set());
-  };
-
-  const formatToolName = (toolName: string) => {
-    const lastSeparator = toolName.lastIndexOf(MCP_SERVER_TOOL_NAME_SEPARATOR);
-    if (lastSeparator !== -1) {
-      return toolName.substring(lastSeparator + 2);
-    }
-    return toolName;
-  };
-
-  return (
-    <div>
-      <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/30">
-        <span className="text-xs text-muted-foreground">
-          {selectedCount} of {tools.length} selected
-        </span>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs h-6 px-2"
-            onClick={handleSelectAll}
-            disabled={allSelected}
-          >
-            Select All
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs h-6 px-2"
-            onClick={handleDeselectAll}
-            disabled={noneSelected}
-          >
-            Deselect All
-          </Button>
-        </div>
-      </div>
-      <div className="max-h-[250px] overflow-y-auto">
-        <div className="p-2 space-y-0.5">
-          {tools.map((tool) => {
-            const toolName = formatToolName(tool.name);
-            const isSelected = selectedToolIds.has(tool.id);
-
-            return (
-              <label
-                key={tool.id}
-                htmlFor={`tool-assign-${tool.id}`}
-                className={cn(
-                  "flex items-start gap-3 p-2 rounded-md transition-colors cursor-pointer",
-                  isSelected ? "bg-primary/10" : "hover:bg-muted/50",
-                )}
-              >
-                <Checkbox
-                  id={`tool-assign-${tool.id}`}
-                  checked={isSelected}
-                  onCheckedChange={() => handleToggle(tool.id)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">{toolName}</div>
-                  {tool.description && (
-                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {tool.description}
-                    </div>
-                  )}
-                </div>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-    </div>
   );
 }

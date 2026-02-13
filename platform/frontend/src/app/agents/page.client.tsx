@@ -4,27 +4,17 @@ import type { archestraApiTypes } from "@shared";
 import { archestraApiSdk, E2eTestId } from "@shared";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  ArrowRight,
-  Bot,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Grip,
-  Plus,
-  Search,
-  Tag,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, ChevronUp, Plus, Search, Tag } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/app/_parts/error-boundary";
 import { A2AConnectionInstructions } from "@/components/a2a-connection-instructions";
 import { AgentDialog } from "@/components/agent-dialog";
 import { PromptVersionHistoryDialog } from "@/components/chat/prompt-version-history-dialog";
+import { ConnectDialog } from "@/components/connect-dialog";
 import { DebouncedInput } from "@/components/debounced-input";
-import { LoadingSpinner } from "@/components/loading";
+import { LoadingSpinner, LoadingWrapper } from "@/components/loading";
 import { PageLayout } from "@/components/page-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,8 +36,8 @@ import {
 } from "@/components/ui/tooltip";
 import {
   useDeleteProfile,
+  useProfiles,
   useProfilesPaginated,
-  useProfilesQuery,
 } from "@/lib/agent.query";
 import {
   DEFAULT_AGENTS_PAGE_SIZE,
@@ -70,9 +60,7 @@ export default function AgentsPage({
   return (
     <div className="w-full h-full">
       <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Agents initialData={initialData} />
-        </Suspense>
+        <Agents initialData={initialData} />
       </ErrorBoundary>
     </div>
   );
@@ -167,7 +155,7 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
   const sortBy = sortByFromUrl || DEFAULT_SORT_BY;
   const sortDirection = sortDirectionFromUrl || DEFAULT_SORT_DIRECTION;
 
-  const { data: agentsResponse } = useProfilesPaginated({
+  const { data: agentsResponse, isPending } = useProfilesPaginated({
     initialData: initialData?.agents ?? undefined,
     limit: pageSize,
     offset,
@@ -176,9 +164,6 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
     name: nameFilter || undefined,
     agentTypes: ["agent"],
   });
-
-  const agents = agentsResponse?.data || [];
-  const pagination = agentsResponse?.pagination;
 
   const { data: _teams } = useQuery({
     queryKey: ["teams"],
@@ -199,6 +184,8 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
     setSorting([{ id: sortBy, desc: sortDirection === "desc" }]);
   }, [sortBy, sortDirection]);
 
+  type AgentData = archestraApiTypes.GetAgentsResponses["200"]["data"][number];
+
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [connectingAgent, setConnectingAgent] = useState<{
     id: string;
@@ -207,6 +194,8 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
   } | null>(null);
   const [editingAgent, setEditingAgent] = useState<AgentData | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
+  const [versionHistoryAgent, setVersionHistoryAgent] =
+    useState<AgentData | null>(null);
 
   // Handle 'create' URL parameter to open the Create Agent dialog
   useEffect(() => {
@@ -218,10 +207,6 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
       router.replace(`${pathname}?${newParams.toString()}`);
     }
   }, [searchParams, pathname, router]);
-  const [versionHistoryAgent, setVersionHistoryAgent] =
-    useState<AgentData | null>(null);
-
-  type AgentData = archestraApiTypes.GetAgentsResponses["200"]["data"][number];
 
   // Update URL when search query changes
   const handleSearchChange = useCallback(
@@ -270,6 +255,10 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
     },
     [searchParams, router, pathname],
   );
+
+  const agents = agentsResponse?.data || [];
+  const pagination = agentsResponse?.pagination;
+  const showLoading = isPending && !initialData?.agents;
 
   const columns: ColumnDef<AgentData>[] = [
     {
@@ -416,134 +405,133 @@ function Agents({ initialData }: { initialData?: AgentsInitialData }) {
   ];
 
   return (
-    <PageLayout
-      title="Agents"
-      description={
-        <p className="text-sm text-muted-foreground">
-          Agents are internal AI assistants with system prompts, tools, and
-          integrations like ChatOps, email, and A2A.{" "}
-          <a
-            href="https://archestra.ai/docs/platform-agents"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-foreground"
-          >
-            Read more in the docs
-          </a>
-        </p>
-      }
-      actionButton={
-        <PermissionButton
-          permissions={{ profile: ["create"] }}
-          onClick={() => setIsCreateDialogOpen(true)}
-          data-testid={E2eTestId.CreateAgentButton}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Agent
-        </PermissionButton>
-      }
+    <LoadingWrapper
+      isPending={showLoading}
+      loadingFallback={<LoadingSpinner />}
     >
-      <div>
+      <PageLayout
+        title="Agents"
+        description={
+          <p className="text-sm text-muted-foreground">
+            Agents are internal AI assistants with system prompts, tools, and
+            integrations like ChatOps, email, and A2A.{" "}
+            <a
+              href="https://archestra.ai/docs/platform-agents"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Read more in the docs
+            </a>
+          </p>
+        }
+        actionButton={
+          <PermissionButton
+            permissions={{ profile: ["create"] }}
+            onClick={() => setIsCreateDialogOpen(true)}
+            data-testid={E2eTestId.CreateAgentButton}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Agent
+          </PermissionButton>
+        }
+      >
         <div>
-          <div className="mb-6 flex items-center gap-4">
-            <Button variant="outline" asChild>
-              <Link href="/agents/builder">
-                <Grip className="mr-2 h-4 w-4" />
-                Agent Builder
-              </Link>
-            </Button>
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <DebouncedInput
-                placeholder="Search agents by name..."
-                initialValue={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-9"
-              />
+          <div>
+            <div className="mb-6 flex items-center gap-4">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <DebouncedInput
+                  placeholder="Search agents by name..."
+                  initialValue={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-9"
+                />
+              </div>
             </div>
+
+            {!agents || agents.length === 0 ? (
+              <div className="text-muted-foreground">
+                {nameFilter
+                  ? "No agents found matching your search"
+                  : "No agents found"}
+              </div>
+            ) : (
+              <div data-testid={E2eTestId.AgentsTable}>
+                <DataTable
+                  columns={columns}
+                  data={agents}
+                  sorting={sorting}
+                  onSortingChange={handleSortingChange}
+                  manualSorting={true}
+                  manualPagination={true}
+                  pagination={{
+                    pageIndex,
+                    pageSize,
+                    total: pagination?.total || 0,
+                  }}
+                  onPaginationChange={handlePaginationChange}
+                />
+              </div>
+            )}
+
+            <AgentDialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+              agentType="agent"
+              onCreated={(agent) => {
+                setIsCreateDialogOpen(false);
+                setConnectingAgent({ ...agent, agentType: "agent" });
+              }}
+              onViewVersionHistory={setVersionHistoryAgent}
+            />
+
+            {connectingAgent && (
+              <ConnectAgentDialog
+                agent={connectingAgent}
+                open={!!connectingAgent}
+                onOpenChange={(open) => !open && setConnectingAgent(null)}
+              />
+            )}
+
+            <AgentDialog
+              open={!!editingAgent}
+              onOpenChange={(open) => !open && setEditingAgent(null)}
+              agent={editingAgent}
+              agentType="agent"
+              onViewVersionHistory={setVersionHistoryAgent}
+            />
+
+            <PromptVersionHistoryDialog
+              open={!!versionHistoryAgent}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setVersionHistoryAgent(null);
+                }
+              }}
+              agent={versionHistoryAgent}
+            />
+
+            {deletingAgentId && (
+              <DeleteAgentDialog
+                agentId={deletingAgentId}
+                open={!!deletingAgentId}
+                onOpenChange={(open) => !open && setDeletingAgentId(null)}
+              />
+            )}
           </div>
-
-          {!agents || agents.length === 0 ? (
-            <div className="text-muted-foreground">
-              {nameFilter
-                ? "No agents found matching your search"
-                : "No agents found"}
-            </div>
-          ) : (
-            <div data-testid={E2eTestId.AgentsTable}>
-              <DataTable
-                columns={columns}
-                data={agents}
-                sorting={sorting}
-                onSortingChange={handleSortingChange}
-                manualSorting={true}
-                manualPagination={true}
-                pagination={{
-                  pageIndex,
-                  pageSize,
-                  total: pagination?.total || 0,
-                }}
-                onPaginationChange={handlePaginationChange}
-              />
-            </div>
-          )}
-
-          <AgentDialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-            agentType="agent"
-            onCreated={(agent) => {
-              setIsCreateDialogOpen(false);
-              setConnectingAgent({ ...agent, agentType: "agent" });
-            }}
-            onViewVersionHistory={setVersionHistoryAgent}
-          />
-
-          {connectingAgent && (
-            <ConnectAgentDialog
-              agent={connectingAgent}
-              open={!!connectingAgent}
-              onOpenChange={(open) => !open && setConnectingAgent(null)}
-            />
-          )}
-
-          <AgentDialog
-            open={!!editingAgent}
-            onOpenChange={(open) => !open && setEditingAgent(null)}
-            agent={editingAgent}
-            agentType="agent"
-            onViewVersionHistory={setVersionHistoryAgent}
-          />
-
-          <PromptVersionHistoryDialog
-            open={!!versionHistoryAgent}
-            onOpenChange={(open) => {
-              if (!open) {
-                setVersionHistoryAgent(null);
-              }
-            }}
-            agent={versionHistoryAgent}
-          />
-
-          {deletingAgentId && (
-            <DeleteAgentDialog
-              agentId={deletingAgentId}
-              open={!!deletingAgentId}
-              onOpenChange={(open) => !open && setDeletingAgentId(null)}
-            />
-          )}
         </div>
-      </div>
-    </PageLayout>
+      </PageLayout>
+    </LoadingWrapper>
   );
 }
 
 function AgentConnectionColumns({ agentId }: { agentId: string }) {
-  // Fetch agent data for A2A connection instructions (non-suspense to avoid loading flicker)
-  const { data: profiles } = useProfilesQuery();
+  // Fetch agent data for A2A connection instructions
+  const { data: profiles, isPending } = useProfiles();
   const agent = profiles?.find((p) => p.id === agentId);
 
-  if (!agent) {
+  if (isPending || !agent) {
     return (
       <div className="flex items-center justify-center py-8">
         <LoadingSpinner />
@@ -553,15 +541,7 @@ function AgentConnectionColumns({ agentId }: { agentId: string }) {
 
   return (
     <div className="p-4 rounded-lg border bg-card">
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center py-8">
-            <LoadingSpinner />
-          </div>
-        }
-      >
-        <A2AConnectionInstructions agent={agent} />
-      </Suspense>
+      <A2AConnectionInstructions agent={agent} />
     </div>
   );
 }
@@ -580,60 +560,14 @@ function ConnectAgentDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[90vh] p-0 flex flex-col border-0">
-        {/* Header with gradient */}
-        <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background px-6 pt-6 pb-5 shrink-0">
-          <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
-          <div className="relative">
-            <DialogHeader>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="p-1.5 rounded-full bg-primary/10">
-                  <Bot className="h-4 w-4 text-primary" />
-                </div>
-                <DialogTitle className="text-xl font-semibold">
-                  Connect to "
-                  <span className="truncate inline-block max-w-xs align-bottom">
-                    {agent.name}
-                  </span>
-                  "
-                </DialogTitle>
-              </div>
-            </DialogHeader>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <AgentConnectionColumns agentId={agent.id} />
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30 shrink-0">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ExternalLink className="h-3.5 w-3.5" />
-            <span>Need help? Check our</span>
-            <a
-              href="https://archestra.ai/docs/platform-agents"
-              target="_blank"
-              className="text-primary hover:underline font-medium"
-              rel="noopener"
-            >
-              documentation
-            </a>
-          </div>
-          <Button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            size="default"
-            className="min-w-[100px]"
-          >
-            Done
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <ConnectDialog
+      agent={agent}
+      open={open}
+      onOpenChange={onOpenChange}
+      docsPage="platform-agents"
+    >
+      <AgentConnectionColumns agentId={agent.id} />
+    </ConnectDialog>
   );
 }
 
@@ -649,12 +583,10 @@ function DeleteAgentDialog({
   const deleteAgent = useDeleteProfile();
 
   const handleDelete = useCallback(async () => {
-    try {
-      await deleteAgent.mutateAsync(agentId);
+    const result = await deleteAgent.mutateAsync(agentId);
+    if (result) {
       toast.success("Agent deleted successfully");
       onOpenChange(false);
-    } catch (_error) {
-      toast.error("Failed to delete agent");
     }
   }, [agentId, deleteAgent, onOpenChange]);
 

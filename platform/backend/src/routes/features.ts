@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -36,6 +37,8 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
             vllmEnabled: z.boolean(),
             /** Ollama mode - when enabled, no API key is typically needed */
             ollamaEnabled: z.boolean(),
+            /** Mistral mode - when enabled, Mistral AI provider is available */
+            mistralEnabled: z.boolean(),
             /** Global tool policy - permissive bypasses policy checks, restrictive enforces them */
             globalToolPolicy: z.enum(["permissive", "restrictive"]),
             /** Browser streaming - enables live browser automation via Playwright MCP */
@@ -55,6 +58,19 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
             }),
             /** MCP server base Docker image (shown in UI for reference) */
             mcpServerBaseImage: z.string(),
+            /** Default K8s namespace for MCP server pods */
+            orchestratorK8sNamespace: z.string(),
+            /** Whether the platform is running in quickstart mode */
+            isQuickstart: z.boolean(),
+            /** ngrok tunnel domain (e.g. "abc123.ngrok-free.app") when ngrok is active */
+            ngrokDomain: z.string(),
+            /** ChatOps configuration status (which fields are set) */
+            chatops: z.object({
+              msTeamsEnabled: z.boolean(),
+              msTeamsAppId: z.boolean(),
+              msTeamsAppSecret: z.boolean(),
+              msTeamsTenantId: z.boolean(),
+            }),
           }),
         },
       },
@@ -73,13 +89,36 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
         geminiVertexAiEnabled: isVertexAiEnabled(),
         vllmEnabled: config.llm.vllm.enabled,
         ollamaEnabled: config.llm.ollama.enabled,
+        mistralEnabled: true, // Mistral is always enabled (has default base URL)
         globalToolPolicy,
         incomingEmail: getEmailProviderInfo(),
         knowledgeGraph: getKnowledgeGraphProviderInfo(),
         mcpServerBaseImage: config.orchestrator.mcpServerBaseImage,
+        orchestratorK8sNamespace: config.orchestrator.kubernetes.namespace,
+        isQuickstart: config.isQuickstart,
+        ngrokDomain: getNgrokDomain(),
+        chatops: {
+          msTeamsEnabled: config.chatops.msTeams.enabled,
+          msTeamsAppId: Boolean(config.chatops.msTeams.appId),
+          msTeamsAppSecret: Boolean(config.chatops.msTeams.appSecret),
+          msTeamsTenantId: Boolean(config.chatops.msTeams.tenantId),
+        },
       });
     },
   );
 };
 
 export default featuresRoutes;
+
+/**
+ * Get the ngrok domain from env var or from the file written by the
+ * detect-ngrok-domain.sh script (for dynamically assigned domains).
+ */
+function getNgrokDomain(): string {
+  if (config.ngrokDomain) return config.ngrokDomain;
+  try {
+    return readFileSync("/app/data/.ngrok_domain", "utf-8").trim();
+  } catch {
+    return "";
+  }
+}

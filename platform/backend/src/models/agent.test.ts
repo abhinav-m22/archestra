@@ -1,4 +1,5 @@
 import {
+  PLAYWRIGHT_MCP_CATALOG_ID,
   TOOL_ARTIFACT_WRITE_FULL_NAME,
   TOOL_TODO_WRITE_FULL_NAME,
 } from "@shared";
@@ -1479,13 +1480,126 @@ describe("AgentModel", () => {
     });
   });
 
-  describe("getAgentOrCreateDefault Junction Table", () => {
-    test("getAgentOrCreateDefault returns tools from junction table", async ({
+  describe("Description", () => {
+    test("can create an agent with description", async () => {
+      const agent = await AgentModel.create({
+        name: "Described Agent",
+        agentType: "agent",
+        description: "An agent that helps with code review",
+        teams: [],
+      });
+
+      expect(agent.description).toBe("An agent that helps with code review");
+    });
+
+    test("description defaults to null", async () => {
+      const agent = await AgentModel.create({
+        name: "Basic Agent",
+        agentType: "agent",
+        teams: [],
+      });
+
+      expect(agent.description).toBeNull();
+    });
+
+    test("findById returns description", async () => {
+      const agent = await AgentModel.create({
+        name: "Find Me Agent",
+        agentType: "agent",
+        description: "Test description",
+        teams: [],
+      });
+
+      const found = await AgentModel.findById(agent.id);
+      expect(found).not.toBeNull();
+      expect(found?.description).toBe("Test description");
+    });
+
+    test("update can modify description", async () => {
+      const agent = await AgentModel.create({
+        name: "Updatable Agent",
+        agentType: "agent",
+        description: "Original description",
+        teams: [],
+      });
+
+      const updated = await AgentModel.update(agent.id, {
+        description: "Updated description",
+      });
+
+      expect(updated?.description).toBe("Updated description");
+    });
+
+    test("findAll returns description for all agents", async () => {
+      await AgentModel.create({
+        name: "Agent A",
+        agentType: "agent",
+        description: "Desc A",
+        teams: [],
+      });
+      await AgentModel.create({
+        name: "Agent B",
+        agentType: "agent",
+        teams: [],
+      });
+
+      const agents = await AgentModel.findAll();
+      const agentA = agents.find((a) => a.name === "Agent A");
+      const agentB = agents.find((a) => a.name === "Agent B");
+
+      expect(agentA?.description).toBe("Desc A");
+      expect(agentB?.description).toBeNull();
+    });
+  });
+
+  describe("hasPlaywrightToolsAssigned", () => {
+    test("returns false when no playwright tools are assigned", async () => {
+      const agent = await AgentModel.create({
+        name: "No Playwright Agent",
+        teams: [],
+      });
+
+      const result = await AgentModel.hasPlaywrightToolsAssigned(agent.id);
+      expect(result).toBe(false);
+    });
+
+    test("returns true when playwright tools are assigned", async ({
+      makeTool,
+      makeAgentTool,
+      makeInternalMcpCatalog,
+    }) => {
+      const agent = await AgentModel.create({
+        name: "Playwright Agent",
+        teams: [],
+      });
+
+      const catalog = await makeInternalMcpCatalog({
+        id: PLAYWRIGHT_MCP_CATALOG_ID,
+        name: "Playwright",
+        serverType: "builtin",
+      });
+
+      const tool = await makeTool({
+        name: "playwright__browser_snapshot",
+        description: "Take a snapshot",
+        parameters: {},
+        catalogId: catalog.id,
+      });
+
+      await makeAgentTool(agent.id, tool.id);
+
+      const result = await AgentModel.hasPlaywrightToolsAssigned(agent.id);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("getMCPGatewayOrCreateDefault Junction Table", () => {
+    test("getMCPGatewayOrCreateDefault returns tools from junction table", async ({
       makeTool,
       makeAgentTool,
     }) => {
-      // Get the default agent
-      const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+      // Get the default MCP gateway
+      const defaultAgent = await AgentModel.getMCPGatewayOrCreateDefault();
 
       // Add tools to the default agent via junction table
       const tool1 = await makeTool({
@@ -1502,8 +1616,8 @@ describe("AgentModel", () => {
       await makeAgentTool(defaultAgent.id, tool1.id);
       await makeAgentTool(defaultAgent.id, tool2.id);
 
-      // Get the default agent again - should include the tools
-      const foundAgent = await AgentModel.getAgentOrCreateDefault();
+      // Get the default MCP gateway again - should include the tools
+      const foundAgent = await AgentModel.getMCPGatewayOrCreateDefault();
 
       expect(foundAgent).not.toBeNull();
       expect(foundAgent.tools.length).toBeGreaterThanOrEqual(2);
@@ -1513,12 +1627,12 @@ describe("AgentModel", () => {
       expect(toolNames).toContain("default_agent_tool_2");
     });
 
-    test("getAgentOrCreateDefault includes Archestra MCP tools", async ({
+    test("getMCPGatewayOrCreateDefault includes Archestra MCP tools", async ({
       makeTool,
       makeAgentTool,
     }) => {
-      // Get the default agent
-      const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+      // Get the default MCP gateway
+      const defaultAgent = await AgentModel.getMCPGatewayOrCreateDefault();
 
       // Add regular tools
       const regularTool = await makeTool({
@@ -1537,8 +1651,8 @@ describe("AgentModel", () => {
       await makeAgentTool(defaultAgent.id, regularTool.id);
       await makeAgentTool(defaultAgent.id, archestraTool.id);
 
-      // Get the default agent again
-      const foundAgent = await AgentModel.getAgentOrCreateDefault();
+      // Get the default MCP gateway again
+      const foundAgent = await AgentModel.getMCPGatewayOrCreateDefault();
 
       // Verify both regular and Archestra tools are included
       const toolNames = foundAgent.tools.map((t) => t.name);

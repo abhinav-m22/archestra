@@ -11,6 +11,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { ChatOpsProviderType } from "@/types/chatops";
+import chatApiKeysTable from "./chat-api-key";
+import identityProvidersTable from "./identity-provider";
 
 /**
  * Represents a historical version of an agent's prompt stored in the prompt_history JSONB array.
@@ -86,6 +88,10 @@ const agentsTable = pgTable(
       .$type<ChatOpsProviderType[]>()
       .default([]),
 
+    // Description (only used when agentType = 'agent')
+    /** Human-readable description of the agent */
+    description: text("description"),
+
     // Incoming email settings (only used when agentType = 'agent')
     /** Whether incoming email invocation is enabled for this agent */
     incomingEmailEnabled: boolean("incoming_email_enabled")
@@ -99,6 +105,20 @@ const agentsTable = pgTable(
     /** Allowed domain for 'internal' security mode (e.g., 'example.com') */
     incomingEmailAllowedDomain: text("incoming_email_allowed_domain"),
 
+    // LLM configuration (allows per-agent model selection)
+    /** API key ID for LLM calls */
+    llmApiKeyId: uuid("llm_api_key_id").references(() => chatApiKeysTable.id, {
+      onDelete: "set null",
+    }),
+    /** Model ID for LLM calls */
+    llmModel: text("llm_model"),
+
+    /** Optional Identity Provider for JWKS-based JWT validation on MCP Gateway requests */
+    identityProviderId: text("identity_provider_id").references(
+      () => identityProvidersTable.id,
+      { onDelete: "set null" },
+    ),
+
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" })
       .notNull()
@@ -108,6 +128,7 @@ const agentsTable = pgTable(
   (table) => [
     index("agents_organization_id_idx").on(table.organizationId),
     index("agents_agent_type_idx").on(table.agentType),
+    index("agents_identity_provider_id_idx").on(table.identityProviderId),
   ],
 );
 

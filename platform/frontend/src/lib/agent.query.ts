@@ -1,14 +1,10 @@
 import { archestraApiSdk, type archestraApiTypes } from "@shared";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DEFAULT_AGENTS_PAGE_SIZE,
   DEFAULT_SORT_BY,
   DEFAULT_SORT_DIRECTION,
+  handleApiError,
 } from "./utils";
 
 const {
@@ -16,7 +12,8 @@ const {
   deleteAgent,
   getAgents,
   getAllAgents,
-  getDefaultAgent,
+  getDefaultMcpGateway,
+  getDefaultLlmProxy,
   getAgent,
   updateAgent,
   getLabelKeys,
@@ -25,14 +22,14 @@ const {
   rollbackAgent,
 } = archestraApiSdk;
 
-// For backward compatibility - returns all agents as an array (suspense version)
+// Returns all agents as an array
 export function useProfiles(
   params: {
     initialData?: archestraApiTypes.GetAllAgentsResponses["200"];
     filters?: archestraApiTypes.GetAllAgentsData["query"];
   } = {},
 ) {
-  return useSuspenseQuery({
+  return useQuery({
     queryKey: ["agents", "all", params?.filters],
     queryFn: async () => {
       const response = await getAllAgents({ query: params?.filters });
@@ -42,23 +39,7 @@ export function useProfiles(
   });
 }
 
-/**
- * Non-suspense version of useProfiles.
- * Use in components that need to show loading states instead of suspense boundaries.
- */
-export function useProfilesQuery(
-  params: { filters?: archestraApiTypes.GetAllAgentsData["query"] } = {},
-) {
-  return useQuery({
-    queryKey: ["agents", "all", params?.filters],
-    queryFn: async () => {
-      const response = await getAllAgents({ query: params?.filters });
-      return response.data ?? [];
-    },
-  });
-}
-
-// New paginated hook for the agents page
+// Paginated hook for the agents page
 export function useProfilesPaginated(params?: {
   initialData?: archestraApiTypes.GetAgentsResponses["200"];
   limit?: number;
@@ -89,7 +70,7 @@ export function useProfilesPaginated(params?: {
     agentTypes === undefined &&
     (limit === undefined || limit === DEFAULT_AGENTS_PAGE_SIZE);
 
-  return useSuspenseQuery({
+  return useQuery({
     queryKey: [
       "agents",
       { limit, offset, sortBy, sortDirection, name, agentTypes },
@@ -111,12 +92,25 @@ export function useProfilesPaginated(params?: {
   });
 }
 
-export function useDefaultProfile(params?: {
-  initialData?: archestraApiTypes.GetDefaultAgentResponses["200"];
+export function useDefaultMcpGateway(params?: {
+  initialData?: archestraApiTypes.GetDefaultMcpGatewayResponses["200"];
 }) {
   return useQuery({
-    queryKey: ["agents", "default"],
-    queryFn: async () => (await getDefaultAgent()).data ?? null,
+    queryKey: ["mcp-gateways", "default"],
+    queryFn: async () => (await getDefaultMcpGateway()).data ?? null,
+    initialData: params?.initialData,
+  });
+}
+
+export function useDefaultLlmProxy(params?: {
+  initialData?: archestraApiTypes.GetDefaultLlmProxyResponses["200"];
+}) {
+  return useQuery({
+    queryKey: ["llm-proxy", "default"],
+    queryFn: async () => {
+      const response = await getDefaultLlmProxy();
+      return response.data ?? null;
+    },
     initialData: params?.initialData,
   });
 }
@@ -183,8 +177,12 @@ export function useDeleteProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await deleteAgent({ path: { id } });
-      return response.data;
+      const { data, error } = await deleteAgent({ path: { id } });
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });

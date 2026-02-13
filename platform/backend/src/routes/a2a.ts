@@ -5,6 +5,7 @@ import { z } from "zod";
 import { executeA2AMessage } from "@/agents/a2a-executor";
 import config from "@/config";
 import { AgentModel, UserModel } from "@/models";
+import { ProviderError } from "@/routes/chat/errors";
 import {
   extractBearerToken,
   validateMCPGatewayToken,
@@ -79,6 +80,7 @@ const A2AJsonRpcResponseSchema = z.object({
     .object({
       code: z.number(),
       message: z.string(),
+      data: z.unknown().optional(),
     })
     .optional(),
 });
@@ -137,9 +139,26 @@ const a2aRoutes: FastifyPluginAsyncZod = async (fastify) => {
       const host = request.headers.host || "localhost:9000";
       const baseUrl = `${protocol}://${host}`;
 
+      // Build skills array with a single skill representing the agent
+      const skillId = agent.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+      const skills = [
+        {
+          id: skillId,
+          name: agent.name,
+          description: agent.description || agent.userPrompt || "",
+          tags: [],
+          inputModes: ["text"],
+          outputModes: ["text"],
+        },
+      ];
+
       return reply.send({
         name: agent.name,
-        description: agent.systemPrompt || agent.userPrompt || "",
+        description:
+          agent.description || agent.systemPrompt || agent.userPrompt || "",
         url: `${baseUrl}${endpoint}/${agent.id}`,
         version: String(agent.promptVersion || 1),
         capabilities: {
@@ -149,16 +168,7 @@ const a2aRoutes: FastifyPluginAsyncZod = async (fastify) => {
         },
         defaultInputModes: ["text"],
         defaultOutputModes: ["text"],
-        skills: [
-          {
-            id: `${agent.id}-skill`,
-            name: agent.name,
-            description: agent.userPrompt || "",
-            tags: [],
-            inputModes: ["text"],
-            outputModes: ["text"],
-          },
-        ],
+        skills,
       });
     },
   );
@@ -312,12 +322,15 @@ const a2aRoutes: FastifyPluginAsyncZod = async (fastify) => {
           },
         });
       } catch (error) {
+        const chatError =
+          error instanceof ProviderError ? error.chatErrorResponse : undefined;
         return reply.send({
           jsonrpc: "2.0" as const,
           id,
           error: {
             code: -32603,
             message: error instanceof Error ? error.message : "Internal error",
+            data: chatError,
           },
         });
       }

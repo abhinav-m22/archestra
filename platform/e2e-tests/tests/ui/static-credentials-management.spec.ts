@@ -13,6 +13,7 @@ import {
   addCustomSelfHostedCatalogItem,
   assignEngineeringTeamToDefaultProfileViaApi,
   clickButton,
+  closeOpenDialogs,
   getVisibleCredentials,
   getVisibleStaticCredentials,
   goToMcpRegistryAndOpenManageToolsAndOpenTokenSelect,
@@ -20,7 +21,7 @@ import {
   verifyToolCallResultViaApi,
 } from "../../utils";
 
-const CONNECT_BUTTON_TIMEOUT = 25_000;
+const CONNECT_BUTTON_TIMEOUT = 30_000;
 
 test.describe("Custom Self-hosted MCP Server - installation and static credentials management (vault disabled, prompt-on-installation disabled)", () => {
   // Matrix tests
@@ -43,7 +44,7 @@ test.describe("Custom Self-hosted MCP Server - installation and static credentia
       extractCookieHeaders,
       makeRandomString,
     }) => {
-      test.setTimeout(60_000); // 90 seconds - K8s pod startup can be slow
+      test.setTimeout(60_000); // 60 seconds - k8s pod startup can be slow
       const page = (() => {
         switch (user) {
           case "Admin":
@@ -71,18 +72,16 @@ test.describe("Custom Self-hosted MCP Server - installation and static credentia
 
       // Go to MCP Registry page
       await goToPage(page, "/mcp-catalog/registry");
-      await page.waitForLoadState("networkidle");
 
       // Click connect button for the catalog item
       await page
         .getByTestId(`${E2eTestId.ConnectCatalogItemButton}-${catalogItemName}`)
         .click({ timeout: CONNECT_BUTTON_TIMEOUT });
       await page.waitForLoadState("networkidle");
-      // Personal credential type should be selected by default if vault is disabled
-      // otherwise team credential type should be selected
+      // Installation type dropdown should show "Myself" by default when vault is disabled
       await expect(
-        page.getByTestId(E2eTestId.SelectCredentialTypePersonal),
-      ).toBeChecked();
+        page.getByTestId(E2eTestId.SelectCredentialTypeTeamDropdown),
+      ).toContainText("Myself");
 
       // Install using personal credential
       await clickButton({ page, options: { name: "Install" } });
@@ -100,15 +99,32 @@ test.describe("Custom Self-hosted MCP Server - installation and static credentia
         ).not.toBeVisible();
       }
 
-      // Then click connect again
+      // After adding a server, the install dialog opens automatically.
+      // Close it so the calling test can control when to open it.
       await page
-        .getByTestId(`${E2eTestId.ConnectCatalogItemButton}-${catalogItemName}`)
-        .click({ timeout: CONNECT_BUTTON_TIMEOUT });
-      // And this time team credential type should be selected by default for everyone
+        .getByRole("dialog")
+        .filter({ hasText: /Assignments/ })
+        .waitFor({ state: "visible", timeout: 10000 });
+      await closeOpenDialogs(page);
+
+      // Then click connect again
+      // Wait for the connect button to be visible and enabled before clicking
+      const connectButton = page.getByTestId(
+        `${E2eTestId.ConnectCatalogItemButton}-${catalogItemName}`,
+      );
+      await connectButton.waitFor({
+        state: "visible",
+        timeout: CONNECT_BUTTON_TIMEOUT,
+      });
+      await expect(connectButton).toBeEnabled({
+        timeout: CONNECT_BUTTON_TIMEOUT,
+      });
+      await connectButton.click({ timeout: CONNECT_BUTTON_TIMEOUT });
+      // And this time a team should be auto-selected (since personal installation already exists)
       await expect(
-        page.getByTestId(E2eTestId.SelectCredentialTypeTeam),
-      ).toBeChecked();
-      // open teams dropdown
+        page.getByTestId(E2eTestId.SelectCredentialTypeTeamDropdown),
+      ).not.toContainText("Myself");
+      // open installation type dropdown to verify teams
       await page.getByRole("combobox").click();
       // Validate Admin sees all teams in dropdown, Editor and Member see only their own teams
       const expectedTeams = {
@@ -117,17 +133,10 @@ test.describe("Custom Self-hosted MCP Server - installation and static credentia
         Member: [MARKETING_TEAM_NAME],
       };
       for (const team of expectedTeams[user]) {
-        await expect(
-          page
-            .getByTestId(E2eTestId.SelectCredentialTypeTeamDropdown)
-            .getByText(team),
-        ).toBeVisible();
+        await expect(page.getByRole("option", { name: team })).toBeVisible();
       }
       // select first team from dropdown
-      await page
-        .getByTestId(E2eTestId.SelectCredentialTypeTeamDropdown)
-        .getByText(expectedTeams[user][0])
-        .click();
+      await page.getByRole("option", { name: expectedTeams[user][0] }).click();
 
       // Install credential for team
       await clickButton({ page, options: { name: "Install" } });
@@ -254,12 +263,23 @@ test("Verify Manage Credentials dialog shows correct other users credentials", a
       return;
     }
 
-    // Wait for dialog to close and button to be visible again
+    // After adding a server, the install dialog opens automatically.
+    // Close it so the calling test can control when to open it.
+    await page
+      .getByRole("dialog")
+      .filter({ hasText: /Assignments/ })
+      .waitFor({ state: "visible", timeout: 10000 });
+    await closeOpenDialogs(page);
+
+    // Wait for dialog to close and button to be visible and enabled again
     const connectButton = page.getByTestId(
       `${E2eTestId.ConnectCatalogItemButton}-${catalogItemName}`,
     );
     await connectButton.waitFor({
       state: "visible",
+      timeout: CONNECT_BUTTON_TIMEOUT,
+    });
+    await expect(connectButton).toBeEnabled({
       timeout: CONNECT_BUTTON_TIMEOUT,
     });
     await connectButton.click({ timeout: CONNECT_BUTTON_TIMEOUT });

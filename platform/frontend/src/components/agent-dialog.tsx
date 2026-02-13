@@ -1,20 +1,28 @@
 "use client";
 
 import type { archestraApiTypes } from "@shared";
-import { archestraApiSdk } from "@shared";
+import {
+  archestraApiSdk,
+  providerDisplayNames,
+  type SupportedProvider,
+} from "@shared";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Bot,
   Building2,
+  CheckIcon,
   ExternalLink,
   Globe,
+  Key,
   Loader2,
   Lock,
   Search,
+  User,
+  Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   type ProfileLabel,
@@ -25,10 +33,19 @@ import {
   AgentToolsEditor,
   type AgentToolsEditorRef,
 } from "@/components/agent-tools-editor";
-import { EmailNotConfiguredMessage } from "@/components/email-not-configured-message";
+import { ModelSelector } from "@/components/chat/model-selector";
+import { MsTeamsSetupDialog } from "@/components/ms-teams-setup-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +53,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ExpandableText } from "@/components/ui/expandable-text";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
@@ -65,9 +83,21 @@ import {
 } from "@/lib/agent-tools.query";
 import { useHasPermissions } from "@/lib/auth.query";
 import { useChatProfileMcpTools } from "@/lib/chat.query";
+import { useModelsByProvider } from "@/lib/chat-models.query";
+import { useAvailableChatApiKeys } from "@/lib/chat-settings.query";
 import { useChatOpsStatus } from "@/lib/chatops.query";
+import config from "@/lib/config";
 import { useFeatures } from "@/lib/features.query";
 import { useInternalMcpCatalog } from "@/lib/internal-mcp-catalog.query";
+
+const { useIdentityProviders } = config.enterpriseLicenseActivated
+  ? // biome-ignore lint/style/noRestrictedImports: conditional EE query import for IdP selector
+    await import("@/lib/identity-provider.query.ee")
+  : {
+      useIdentityProviders: () => ({
+        data: [] as Array<{ id: string; providerId: string; issuer: string }>,
+      }),
+    };
 
 type Agent = archestraApiTypes.GetAllAgentsResponses["200"][number];
 
@@ -137,10 +167,12 @@ function SubagentPill({ agent, isSelected, onToggle }: SubagentPillProps) {
         <div className="p-4 border-b flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold truncate">{agent.name}</h4>
-            {agent.systemPrompt && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {agent.systemPrompt}
-              </p>
+            {agent.description && (
+              <ExpandableText
+                text={agent.description}
+                maxLines={2}
+                className="text-sm text-muted-foreground mt-1"
+              />
             )}
           </div>
           <Button
@@ -366,6 +398,12 @@ export function AgentDialog({
   const { data: currentDelegations = [] } = useAgentDelegations(agent?.id);
   const { data: chatopsProviders = [] } = useChatOpsStatus();
   const { data: features } = useFeatures();
+  const { data: identityProviders = [] } = useIdentityProviders();
+  const agentLlmApiKeyId = agent?.llmApiKeyId;
+  const { data: availableApiKeys = [] } = useAvailableChatApiKeys({
+    includeKeyId: agentLlmApiKeyId,
+  });
+  const { modelsByProvider } = useModelsByProvider();
 
   // Fetch fresh agent data when dialog opens
   const { data: freshAgent, refetch: refetchAgent } = useProfile(agent?.id);
@@ -382,6 +420,7 @@ export function AgentDialog({
 
   // Form state
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [selectedDelegationTargetIds, setSelectedDelegationTargetIds] =
@@ -397,6 +436,9 @@ export function AgentDialog({
   >("private");
   const [incomingEmailAllowedDomain, setIncomingEmailAllowedDomain] =
     useState("");
+  const [llmApiKeyId, setLlmApiKeyId] = useState<string | null>(null);
+  const [llmModel, setLlmModel] = useState<string | null>(null);
+  const [apiKeySelectorOpen, setApiKeySelectorOpen] = useState(false);
   const [subagentsSearch, setSubagentsSearch] = useState("");
   const [subagentsSearchOpen, setSubagentsSearchOpen] = useState(false);
   const [subagentsShowAll, setSubagentsShowAll] = useState(false);
@@ -404,6 +446,9 @@ export function AgentDialog({
   const [toolsSearchOpen, setToolsSearchOpen] = useState(false);
   const [toolsShowAll, setToolsShowAll] = useState(false);
   const [selectedToolsCount, setSelectedToolsCount] = useState(0);
+  const [identityProviderId, setIdentityProviderId] = useState<string | null>(
+    null,
+  );
 
   // Determine type-specific visibility based on agentType prop
   const isInternalAgent = agentType === "agent";
@@ -427,8 +472,11 @@ export function AgentDialog({
       if (agentData) {
         // Edit mode
         setName(agentData.name);
+        setDescription(agentData.description || "");
         setUserPrompt(agentData.userPrompt || "");
         setSystemPrompt(agentData.systemPrompt || "");
+        setLlmApiKeyId(agentData.llmApiKeyId ?? null);
+        setLlmModel(agentData.llmModel ?? null);
         // Reset delegation targets - will be populated by the next useEffect when data loads
         setSelectedDelegationTargetIds([]);
         // Parse allowedChatops from agent
@@ -447,6 +495,8 @@ export function AgentDialog({
         setConsiderContextUntrusted(
           agentData.considerContextUntrusted || false,
         );
+        // Identity provider ID (for MCP Gateway JWKS auth)
+        setIdentityProviderId(agentData.identityProviderId ?? null);
         // Email invocation settings
         setIncomingEmailEnabled(agentData.incomingEmailEnabled || false);
         setIncomingEmailSecurityMode(
@@ -458,13 +508,17 @@ export function AgentDialog({
       } else {
         // Create mode - reset all fields
         setName("");
+        setDescription("");
         setUserPrompt("");
         setSystemPrompt("");
+        setLlmApiKeyId(null);
+        setLlmModel(null);
         setSelectedDelegationTargetIds([]);
         setAllowedChatops([]);
         setAssignedTeamIds([]);
         setLabels([]);
         setConsiderContextUntrusted(false);
+        setIdentityProviderId(null);
         setIncomingEmailEnabled(false);
         setIncomingEmailSecurityMode("private");
         setIncomingEmailAllowedDomain("");
@@ -477,6 +531,7 @@ export function AgentDialog({
       setToolsSearchOpen(false);
       setToolsShowAll(false);
       setSelectedToolsCount(0);
+      lastAutoSelectedProviderRef.current = null;
     }
   }, [open, agent, freshAgent, refetchAgent]);
 
@@ -491,6 +546,107 @@ export function AgentDialog({
       );
     }
   }, [open, agentId, currentDelegationIds]);
+
+  // LLM Configuration: computed values and bidirectional auto-linking
+  // (same reactive pattern as prompt input: ChatApiKeySelector + onProviderChange)
+  const selectedApiKey = useMemo(
+    () => availableApiKeys.find((k) => k.id === llmApiKeyId),
+    [availableApiKeys, llmApiKeyId],
+  );
+
+  const apiKeysByProvider = useMemo(() => {
+    const grouped: Record<string, typeof availableApiKeys> = {};
+    for (const key of availableApiKeys) {
+      if (!grouped[key.provider]) grouped[key.provider] = [];
+      grouped[key.provider].push(key);
+    }
+    return grouped;
+  }, [availableApiKeys]);
+
+  // Derive provider from selected model (like prompt input's initialProvider/currentProvider)
+  const currentLlmProvider = useMemo((): SupportedProvider | null => {
+    if (!llmModel) return null;
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+      if (models?.some((m) => m.id === llmModel)) {
+        return provider as SupportedProvider;
+      }
+    }
+    return null;
+  }, [llmModel, modelsByProvider]);
+
+  // Track the provider that was active when auto-selection last ran,
+  // so we only auto-select when the provider actually changes (not when the user clears the key).
+  const lastAutoSelectedProviderRef = useRef<string | null>(null);
+
+  // Reactive Model → Key: auto-select key when provider changes
+  // (mirrors ChatApiKeySelector's auto-select useEffect in prompt input)
+  useEffect(() => {
+    // Don't auto-select if no model/provider is set
+    if (!currentLlmProvider) {
+      lastAutoSelectedProviderRef.current = null;
+      return;
+    }
+    // Don't auto-select if no keys available (still loading)
+    if (availableApiKeys.length === 0) return;
+    // If current key already matches the model's provider, nothing to do
+    if (selectedApiKey?.provider === currentLlmProvider) {
+      lastAutoSelectedProviderRef.current = currentLlmProvider;
+      return;
+    }
+    // Only auto-select when the provider actually changed (not when user cleared the key)
+    if (lastAutoSelectedProviderRef.current === currentLlmProvider) return;
+
+    // Auto-select best key for this provider (personal > team > org_wide)
+    const scopePriority = { personal: 0, team: 1, org_wide: 2 } as const;
+    const providerKeys = availableApiKeys
+      .filter((k) => k.provider === currentLlmProvider)
+      .sort(
+        (a, b) =>
+          (scopePriority[a.scope as keyof typeof scopePriority] ?? 3) -
+          (scopePriority[b.scope as keyof typeof scopePriority] ?? 3),
+      );
+
+    if (providerKeys.length > 0) {
+      setLlmApiKeyId(providerKeys[0].id);
+    }
+    lastAutoSelectedProviderRef.current = currentLlmProvider;
+  }, [currentLlmProvider, availableApiKeys, selectedApiKey]);
+
+  // Model change handler - just sets model, key auto-selection is reactive via useEffect above
+  const handleLlmModelChange = useCallback((modelId: string | null) => {
+    setLlmModel(modelId);
+    // Reset auto-select tracking so provider change triggers key selection
+    lastAutoSelectedProviderRef.current = null;
+  }, []);
+
+  // Key change handler - imperatively auto-selects model (like prompt input's onProviderChange)
+  const handleLlmApiKeyChange = useCallback(
+    (keyId: string | null) => {
+      setLlmApiKeyId(keyId);
+      if (!keyId) return;
+
+      const key = availableApiKeys.find((k) => k.id === keyId);
+      if (!key) return;
+
+      // If current model already matches the key's provider, keep it
+      if (currentLlmProvider === key.provider) return;
+
+      // Auto-select model: prefer bestModelId, fall back to first model from provider
+      const bestModelId = (key as Record<string, unknown>).bestModelId as
+        | string
+        | null;
+      if (bestModelId) {
+        setLlmModel(bestModelId);
+      } else {
+        const providerModels =
+          modelsByProvider[key.provider as SupportedProvider];
+        if (providerModels?.length) {
+          setLlmModel(providerModels[0].id);
+        }
+      }
+    },
+    [availableApiKeys, currentLlmProvider, modelsByProvider],
+  );
 
   // Non-admin users must select at least one team for external profiles
   const requiresTeamSelection =
@@ -563,9 +719,15 @@ export function AgentDialog({
             name: trimmedName,
             agentType: agentType,
             ...(isInternalAgent && {
+              description: description.trim() || null,
               userPrompt: trimmedUserPrompt || undefined,
               systemPrompt: trimmedSystemPrompt || undefined,
               allowedChatops,
+              llmApiKeyId: llmApiKeyId || null,
+              llmModel: llmModel || null,
+            }),
+            ...(agentType === "mcp_gateway" && {
+              identityProviderId: identityProviderId || null,
             }),
             teams: assignedTeamIds,
             labels: updatedLabels,
@@ -581,9 +743,15 @@ export function AgentDialog({
           name: trimmedName,
           agentType: agentType,
           ...(isInternalAgent && {
+            description: description.trim() || null,
             userPrompt: trimmedUserPrompt || undefined,
             systemPrompt: trimmedSystemPrompt || undefined,
             allowedChatops,
+            llmApiKeyId: llmApiKeyId || null,
+            llmModel: llmModel || null,
+          }),
+          ...(agentType === "mcp_gateway" && {
+            identityProviderId: identityProviderId || null,
           }),
           teams: assignedTeamIds,
           labels: updatedLabels,
@@ -627,15 +795,19 @@ export function AgentDialog({
     }
   }, [
     name,
+    description,
     userPrompt,
     systemPrompt,
     allowedChatops,
     assignedTeamIds,
     labels,
     considerContextUntrusted,
+    llmApiKeyId,
+    llmModel,
     incomingEmailEnabled,
     incomingEmailSecurityMode,
     incomingEmailAllowedDomain,
+    identityProviderId,
     agentType,
     agent,
     isInternalAgent,
@@ -654,9 +826,7 @@ export function AgentDialog({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const configuredChatopsProviders = chatopsProviders.filter(
-    (provider) => provider.configured,
-  );
+  const [msTeamsSetupOpen, setMsTeamsSetupOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -707,6 +877,153 @@ export function AgentDialog({
                 autoFocus
               />
             </div>
+
+            {/* Description (Agent only) */}
+            {isInternalAgent && (
+              <div className="space-y-2">
+                <Label htmlFor="agentDescription">Description</Label>
+                <p className="text-sm text-muted-foreground">
+                  A brief summary of what this agent does. Helps other agents
+                  quickly understand if this agent is relevant for their task.
+                </p>
+                <Textarea
+                  id="agentDescription"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe what this agent does"
+                  className="min-h-[60px]"
+                />
+              </div>
+            )}
+
+            {/* LLM Configuration (Agent only) */}
+            {isInternalAgent && (
+              <div className="space-y-2">
+                <Label>LLM Configuration</Label>
+                <p className="text-sm text-muted-foreground">
+                  {!llmModel
+                    ? "If nothing selected, best model from user\u2019s keys is used (org-wide \u2192 team \u2192 personal)."
+                    : selectedApiKey && selectedApiKey.scope !== "org_wide"
+                      ? "Selected key will be available to everyone who has access to this agent."
+                      : null}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Model Selector - uses the same Dialog-based ModelSelector as prompt input */}
+                  <ModelSelector
+                    selectedModel={llmModel || ""}
+                    onModelChange={(modelId) => handleLlmModelChange(modelId)}
+                    onClear={() => {
+                      setLlmModel(null);
+                      setLlmApiKeyId(null);
+                      lastAutoSelectedProviderRef.current = null;
+                    }}
+                  />
+
+                  {/* API Key Selector Pill */}
+                  <Popover
+                    open={apiKeySelectorOpen}
+                    onOpenChange={setApiKeySelectorOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 gap-1.5 text-xs max-w-[250px]"
+                      >
+                        <Key className="h-3 w-3 shrink-0" />
+                        {selectedApiKey ? (
+                          <>
+                            <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                            <span className="font-medium truncate">
+                              {selectedApiKey.name}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Select API key...
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search API keys..." />
+                        <CommandList>
+                          <CommandEmpty>No API keys found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              onSelect={() => {
+                                setLlmApiKeyId(null);
+                                setLlmModel(null);
+                                lastAutoSelectedProviderRef.current = null;
+                                setApiKeySelectorOpen(false);
+                              }}
+                            >
+                              <span className="text-muted-foreground">
+                                None (use default)
+                              </span>
+                              {!llmApiKeyId && (
+                                <CheckIcon className="ml-auto h-4 w-4" />
+                              )}
+                            </CommandItem>
+                          </CommandGroup>
+                          {(
+                            Object.keys(
+                              apiKeysByProvider,
+                            ) as SupportedProvider[]
+                          ).map((provider) => (
+                            <CommandGroup
+                              key={provider}
+                              heading={
+                                providerDisplayNames[provider] ?? provider
+                              }
+                            >
+                              {apiKeysByProvider[provider]?.map(
+                                (apiKey: (typeof availableApiKeys)[number]) => (
+                                  <CommandItem
+                                    key={apiKey.id}
+                                    value={`${provider} ${apiKey.name} ${apiKey.teamName || ""}`}
+                                    onSelect={() => {
+                                      handleLlmApiKeyChange(apiKey.id);
+                                      setApiKeySelectorOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      {apiKey.scope === "personal" && (
+                                        <User className="h-3 w-3 shrink-0" />
+                                      )}
+                                      {apiKey.scope === "team" && (
+                                        <Users className="h-3 w-3 shrink-0" />
+                                      )}
+                                      {apiKey.scope === "org_wide" && (
+                                        <Building2 className="h-3 w-3 shrink-0" />
+                                      )}
+                                      <span className="truncate">
+                                        {apiKey.name}
+                                      </span>
+                                      {apiKey.scope === "team" &&
+                                        apiKey.teamName && (
+                                          <span className="text-[10px] text-muted-foreground">
+                                            ({apiKey.teamName})
+                                          </span>
+                                        )}
+                                    </div>
+                                    {llmApiKeyId === apiKey.id && (
+                                      <CheckIcon className="ml-auto h-4 w-4 shrink-0" />
+                                    )}
+                                  </CommandItem>
+                                ),
+                              )}
+                            </CommandGroup>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
 
             {/* Tools (MCP Gateway and Agent only) */}
             {showToolsAndSubagents && (
@@ -834,27 +1151,29 @@ export function AgentDialog({
 
             {/* Agent Trigger Rules (Agent only) */}
             {isInternalAgent && (
-              <div className="space-y-2">
-                <Label>Agent Trigger Rules</Label>
-                {configuredChatopsProviders.length > 0 ? (
-                  <div className="space-y-3 pt-1">
-                    {configuredChatopsProviders.map((provider) => (
-                      <div
-                        key={provider.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="space-y-0.5">
-                          <label
-                            htmlFor={`chatops-${provider.id}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {provider.displayName}
-                          </label>
-                          <p className="text-xs text-muted-foreground">
-                            Allow this agent to be triggered via{" "}
-                            {provider.displayName}
-                          </p>
-                        </div>
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Agent Trigger Rules</h3>
+
+                {/* ChatOps */}
+                <div className="space-y-3">
+                  {chatopsProviders.map((provider) => (
+                    <div
+                      key={provider.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="space-y-0.5">
+                        <label
+                          htmlFor={`chatops-${provider.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {provider.displayName}
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Allow this agent to be triggered via{" "}
+                          {provider.displayName}
+                        </p>
+                      </div>
+                      {provider.configured ? (
                         <Switch
                           id={`chatops-${provider.id}`}
                           checked={allowedChatops.includes(provider.id)}
@@ -873,39 +1192,33 @@ export function AgentDialog({
                             }
                           }}
                         />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No integrations configured. You can integrate with{" "}
-                    <a
-                      href="https://archestra.ai/docs/platform-agents#chatops-microsoft-teams"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline hover:no-underline"
-                    >
-                      Microsoft Teams
-                    </a>{" "}
-                    to trigger agents from chat messages.
-                  </p>
-                )}
-              </div>
-            )}
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMsTeamsSetupOpen(true)}
+                        >
+                          Setup MS Teams
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <MsTeamsSetupDialog
+                  open={msTeamsSetupOpen}
+                  onOpenChange={setMsTeamsSetupOpen}
+                />
 
-            {/* Email Invocation (Agent only) */}
-            {isInternalAgent && (
-              <div className="space-y-2">
-                <Label>Email Invocation</Label>
+                {/* Email */}
                 {features?.incomingEmail?.enabled ? (
-                  <div className="border rounded-lg bg-muted/30 p-4 space-y-4">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label
                           htmlFor="incoming-email-enabled"
-                          className="text-sm font-medium cursor-pointer"
+                          className="text-sm cursor-pointer"
                         >
-                          Enable email invocation
+                          Email
                         </label>
                         <p className="text-xs text-muted-foreground">
                           Allow this agent to be triggered via email
@@ -1024,8 +1337,21 @@ export function AgentDialog({
                     )}
                   </div>
                 ) : (
-                  <div className="border rounded-lg bg-muted/30 p-4">
-                    <EmailNotConfiguredMessage />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-sm">Email</span>
+                      <p className="text-xs text-muted-foreground">
+                        Allow this agent to be triggered via email
+                      </p>
+                    </div>
+                    <a
+                      href="https://archestra.ai/docs/platform-agents#incoming-email"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary underline hover:no-underline"
+                    >
+                      Setup docs
+                    </a>
                   </div>
                 )}
               </div>
@@ -1065,6 +1391,36 @@ export function AgentDialog({
               labels={labels}
               onLabelsChange={setLabels}
             />
+
+            {/* Identity Provider for JWKS Auth (MCP Gateway only) */}
+            {agentType === "mcp_gateway" && identityProviders.length > 0 && (
+              <div className="space-y-2">
+                <Label>Identity Provider (JWKS Auth)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Optionally select an Identity Provider to validate incoming
+                  JWT tokens via JWKS. When configured, MCP clients can
+                  authenticate using JWTs issued by this IdP.
+                </p>
+                <Select
+                  value={identityProviderId ?? "none"}
+                  onValueChange={(value) =>
+                    setIdentityProviderId(value === "none" ? null : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No Identity Provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Identity Provider</SelectItem>
+                    {identityProviders.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {provider.providerId} ({provider.issuer})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Security (LLM Proxy and Agent only) */}
             {showSecurity && (

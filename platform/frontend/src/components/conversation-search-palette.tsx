@@ -37,34 +37,7 @@ import {
 } from "@/components/ui/command";
 import { useIsAuthenticated } from "@/lib/auth.hook";
 import { useConversations, useDeleteConversation } from "@/lib/chat.query";
-
-/**
- * Extracts a display title for a conversation.
- * Priority: explicit title > first user message > "New chat"
- * Matches the behavior of the sidebar to ensure consistency.
- */
-function getConversationDisplayTitle(
-  title: string | null,
-  // biome-ignore lint/suspicious/noExplicitAny: UIMessage structure from AI SDK is dynamic
-  messages?: any[],
-): string {
-  if (title) return title;
-
-  // Extract from first user message only (not AI responses)
-  if (messages && messages.length > 0) {
-    for (const msg of messages) {
-      if (msg.role === "user" && msg.parts) {
-        for (const part of msg.parts) {
-          if (part.type === "text" && part.text) {
-            return part.text;
-          }
-        }
-      }
-    }
-  }
-
-  return "New chat";
-}
+import { getConversationDisplayTitle } from "@/lib/chat-utils";
 
 /**
  * Extracts all text content from messages for preview purposes.

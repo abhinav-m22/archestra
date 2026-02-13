@@ -2,8 +2,8 @@ import { RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { hasPermission } from "@/auth";
-import { initializeMetrics } from "@/llm-metrics";
 import { AgentLabelModel, AgentModel, TeamModel } from "@/models";
+import { metrics } from "@/observability";
 import {
   AgentVersionsResponseSchema,
   ApiError,
@@ -141,17 +141,36 @@ const agentRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/agents/default",
+    "/api/mcp-gateways/default",
     {
       schema: {
-        operationId: RouteId.GetDefaultAgent,
-        description: "Get or create default agent",
-        tags: ["Agents"],
+        operationId: RouteId.GetDefaultMcpGateway,
+        description: "Get or create default MCP Gateway",
+        tags: ["MCP Gateways"],
         response: constructResponseSchema(SelectAgentSchema),
       },
     },
-    async (_request, reply) => {
-      return reply.send(await AgentModel.getAgentOrCreateDefault());
+    async (request, reply) => {
+      return reply.send(
+        await AgentModel.getMCPGatewayOrCreateDefault(request.organizationId),
+      );
+    },
+  );
+
+  fastify.get(
+    "/api/llm-proxy/default",
+    {
+      schema: {
+        operationId: RouteId.GetDefaultLlmProxy,
+        description: "Get or create default LLM Proxy",
+        tags: ["LLM Proxy"],
+        response: constructResponseSchema(SelectAgentSchema),
+      },
+    },
+    async (request, reply) => {
+      return reply.send(
+        await AgentModel.getLLMProxyOrCreateDefault(request.organizationId),
+      );
     },
   );
 
@@ -206,7 +225,9 @@ const agentRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
       // We need to re-init metrics with the new label keys in case label keys changed.
       // Otherwise the newly added labels will not make it to metrics. The labels with new keys, that is.
-      initializeMetrics(labelKeys);
+      metrics.llm.initializeMetrics(labelKeys);
+      metrics.mcp.initializeMcpMetrics(labelKeys);
+      metrics.agentExecution.initializeAgentExecutionMetrics(labelKeys);
 
       return reply.send(agent);
     },
@@ -297,7 +318,9 @@ const agentRoutes: FastifyPluginAsyncZod = async (fastify) => {
       const labelKeys = await AgentLabelModel.getAllKeys();
       // We need to re-init metrics with the new label keys in case label keys changed.
       // Otherwise the newly added labels will not make it to metrics. The labels with new keys, that is.
-      initializeMetrics(labelKeys);
+      metrics.llm.initializeMetrics(labelKeys);
+      metrics.mcp.initializeMcpMetrics(labelKeys);
+      metrics.agentExecution.initializeAgentExecutionMetrics(labelKeys);
 
       return reply.send(agent);
     },

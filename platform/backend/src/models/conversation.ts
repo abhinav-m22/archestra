@@ -161,6 +161,7 @@ class ConversationModel {
             systemPrompt: schema.agentsTable.systemPrompt,
             userPrompt: schema.agentsTable.userPrompt,
             agentType: schema.agentsTable.agentType,
+            llmApiKeyId: schema.agentsTable.llmApiKeyId,
           },
         })
         .from(schema.conversationsTable)
@@ -244,6 +245,7 @@ class ConversationModel {
             systemPrompt: schema.agentsTable.systemPrompt,
             userPrompt: schema.agentsTable.userPrompt,
             agentType: schema.agentsTable.agentType,
+            llmApiKeyId: schema.agentsTable.llmApiKeyId,
           },
         })
         .from(schema.conversationsTable)
@@ -281,6 +283,7 @@ class ConversationModel {
           systemPrompt: schema.agentsTable.systemPrompt,
           userPrompt: schema.agentsTable.userPrompt,
           agentType: schema.agentsTable.agentType,
+          llmApiKeyId: schema.agentsTable.llmApiKeyId,
         },
       })
       .from(schema.conversationsTable)

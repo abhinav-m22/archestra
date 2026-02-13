@@ -1,5 +1,5 @@
 import { E2eTestId } from "@shared";
-import { MessageSquare, Pencil, Plug, Trash2 } from "lucide-react";
+import { Grip, MessageSquare, Pencil, Plug, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -32,20 +32,25 @@ export function AgentActions({
 }: AgentActionsProps) {
   return (
     <ButtonGroup>
-      <PermissionButton
-        permissions={{ profile: ["update"] }}
-        aria-label="Connect"
-        tooltip="Connect"
-        variant="outline"
-        size="icon-sm"
-        data-testid={`${E2eTestId.ConnectAgentButton}-${agent.name}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onConnect(agent);
-        }}
-      >
-        <Plug className="h-4 w-4" />
-      </PermissionButton>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label="Connect"
+              variant="outline"
+              size="icon-sm"
+              data-testid={`${E2eTestId.ConnectAgentButton}-${agent.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onConnect(agent);
+              }}
+            >
+              <Plug className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Connect</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -62,6 +67,24 @@ export function AgentActions({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Chat</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Agent Builder"
+              asChild
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link href={`/agents/builder?agentId=${agent.id}`}>
+                <Grip className="h-4 w-4" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Agent Builder</TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <PermissionButton

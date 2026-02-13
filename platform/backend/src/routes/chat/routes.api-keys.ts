@@ -1,18 +1,19 @@
 import type { IncomingHttpHeaders } from "node:http";
-import { RouteId } from "@shared";
+import { PROVIDERS_WITH_OPTIONAL_API_KEY, RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { capitalize } from "lodash-es";
 import { z } from "zod";
 import { hasPermission } from "@/auth";
-import { CacheKey, cacheManager } from "@/cache-manager";
 import { isVertexAiEnabled } from "@/clients/gemini-client";
-import { ChatApiKeyModel, TeamModel } from "@/models";
+import logger from "@/logging";
+import { ApiKeyModelModel, ChatApiKeyModel, TeamModel } from "@/models";
 import { testProviderApiKey } from "@/routes/chat/routes.models";
 import {
   assertByosEnabled,
   isByosEnabled,
   secretManager,
 } from "@/secrets-manager";
+import { modelSyncService } from "@/services/model-sync";
 import {
   ApiError,
   ChatApiKeyScopeSchema,
@@ -70,6 +71,8 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         tags: ["Chat API Keys"],
         querystring: z.object({
           provider: SupportedChatProviderSchema.optional(),
+          /** Include a specific key by ID even if user doesn't have direct access (e.g. agent's configured key) */
+          includeKeyId: z.string().uuid().optional(),
         }),
         response: constructResponseSchema(
           z.array(ChatApiKeyWithScopeInfoSchema),
@@ -85,7 +88,35 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         userTeamIds,
         query.provider,
       );
-      return reply.send(apiKeys);
+
+      // If includeKeyId is provided and not already in results, fetch it separately
+      if (
+        query.includeKeyId &&
+        !apiKeys.some((k) => k.id === query.includeKeyId)
+      ) {
+        const agentKey = await ChatApiKeyModel.findById(query.includeKeyId);
+        if (agentKey && agentKey.organizationId === organizationId) {
+          apiKeys.push({
+            ...agentKey,
+            teamName: null,
+            userName: null,
+            isAgentKey: true,
+          });
+        }
+      }
+
+      // Compute bestModelId for each key
+      const apiKeysWithBestModel = await Promise.all(
+        apiKeys.map(async (key) => {
+          const bestModel = await ApiKeyModelModel.getBestModel(key.id);
+          return {
+            ...key,
+            bestModelId: bestModel?.modelId ?? null,
+          };
+        }),
+      );
+
+      return reply.send(apiKeysWithBestModel);
     },
   );
 
@@ -111,7 +142,8 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
             (data) =>
               isByosEnabled()
                 ? data.vaultSecretPath && data.vaultSecretKey
-                : data.apiKey,
+                : PROVIDERS_WITH_OPTIONAL_API_KEY.has(data.provider) ||
+                  data.apiKey,
             {
               message:
                 "Either apiKey or both vaultSecretPath and vaultSecretKey must be provided",
@@ -133,6 +165,7 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
       });
 
       let secret: SelectSecret | null = null;
+      let actualApiKeyValue: string | null = null;
 
       // If readonly_vault is enabled
       if (isByosEnabled()) {
@@ -143,9 +176,9 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         // first, get secret from vault path and key
         const manager = assertByosEnabled();
         const vaultData = await manager.getSecretFromPath(body.vaultSecretPath);
-        const apiKeyValue = vaultData[body.vaultSecretKey];
+        actualApiKeyValue = vaultData[body.vaultSecretKey];
 
-        if (!apiKeyValue) {
+        if (!actualApiKeyValue) {
           throw new ApiError(
             400,
             `API key not found in Vault secret at path "${body.vaultSecretPath}" with key "${body.vaultSecretKey}"`,
@@ -153,7 +186,7 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }
         // then test the API key
         try {
-          await testProviderApiKey(body.provider, apiKeyValue);
+          await testProviderApiKey(body.provider, actualApiKeyValue);
         } catch (_error) {
           throw new ApiError(
             400,
@@ -171,9 +204,10 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         );
       } else if (body.apiKey) {
         // When readonly_vault is disabled
+        actualApiKeyValue = body.apiKey;
         // Test the API key before saving
         try {
-          await testProviderApiKey(body.provider, body.apiKey);
+          await testProviderApiKey(body.provider, actualApiKeyValue);
         } catch (_error) {
           throw new ApiError(
             400,
@@ -182,7 +216,7 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }
 
         secret = await secretManager().createSecret(
-          { apiKey: body.apiKey },
+          { apiKey: actualApiKeyValue },
           getChatApiKeySecretName({
             scope: body.scope,
             teamId: body.teamId ?? null,
@@ -191,7 +225,7 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         );
       }
 
-      if (!secret) {
+      if (!secret && !PROVIDERS_WITH_OPTIONAL_API_KEY.has(body.provider)) {
         throw new ApiError(
           400,
           "Secret creation failed, cannot create API key",
@@ -203,14 +237,32 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         organizationId,
         name: body.name,
         provider: body.provider,
-        secretId: secret.id,
+        secretId: secret?.id ?? null,
         scope: body.scope,
         userId: body.scope === "personal" ? user.id : null,
         teamId: body.scope === "team" ? body.teamId : null,
       });
 
-      // Invalidate models cache so users see models from the new provider key
-      await cacheManager.deleteByPrefix(CacheKey.GetChatModels);
+      // Sync models for the new API key in background (non-blocking)
+      if (actualApiKeyValue && modelSyncService.hasFetcher(body.provider)) {
+        modelSyncService
+          .syncModelsForApiKey(
+            createdApiKey.id,
+            body.provider,
+            actualApiKeyValue,
+          )
+          .catch((error) => {
+            logger.error(
+              {
+                apiKeyId: createdApiKey.id,
+                provider: body.provider,
+                errorMessage:
+                  error instanceof Error ? error.message : String(error),
+              },
+              "Failed to sync models for new API key",
+            );
+          });
+      }
 
       return reply.send(createdApiKey);
     },
@@ -460,9 +512,6 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       await ChatApiKeyModel.delete(params.id);
-
-      // Invalidate models cache so users no longer see models from the deleted key
-      await cacheManager.deleteByPrefix(CacheKey.GetChatModels);
 
       return reply.send({ success: true });
     },

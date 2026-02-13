@@ -9,6 +9,7 @@
  * the most recent ones intact so the LLM can work with current state.
  */
 
+import { parseFullToolName } from "@shared";
 import logger from "@/logging";
 import {
   estimateToolResultContentLength,
@@ -209,7 +210,7 @@ function createPlaceholder(
   toolName: string,
   content: string | unknown,
 ): string {
-  const shortName = toolName.split("__").pop() || toolName;
+  const shortName = parseFullToolName(toolName).toolName || toolName;
   const url = extractPageUrl(content);
   return `[Page ${url} ${shortName} was here]`;
 }

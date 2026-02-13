@@ -1,6 +1,6 @@
 ---
 title: Supported LLM Providers
-category: Archestra Platform
+category: Agents
 order: 3
 description: LLM providers supported by Archestra Platform
 lastUpdated: 2026-01-14
@@ -169,6 +169,23 @@ See the [Vertex AI authentication guide](https://cloud.google.com/vertex-ai/docs
 
 - **API Key format**: Obtain your API key from the [Cohere Dashboard](https://dashboard.cohere.ai/)
 
+## Mistral AI
+
+[Mistral AI](https://mistral.ai/) provides state-of-the-art open and commercial AI models through an OpenAI-compatible API.
+
+### Supported Mistral APIs
+
+- **Chat Completions API** (`/chat/completions`) - ✅ Fully supported
+
+### Mistral Connection Details
+
+- **Base URL**: `http://localhost:9000/v1/mistral/{agent-id}`
+- **Authentication**: Pass your Mistral API key in the `Authorization` header as `Bearer <your-api-key>`
+
+### Getting an API Key
+
+You can get an API key from the [Mistral AI Console](https://console.mistral.ai/api-keys).
+
 ## vLLM
 
 [vLLM](https://github.com/vllm-project/vllm) is a high-throughput and memory-efficient inference and serving engine for LLMs. It's ideal for self-hosted deployments where you want to run open-source models on your own infrastructure.
@@ -209,16 +226,15 @@ See the [Vertex AI authentication guide](https://cloud.google.com/vertex-ai/docs
 
 ### Environment Variables
 
-| Variable                        | Required | Description                                                                      |
-| ------------------------------- | -------- | -------------------------------------------------------------------------------- |
-| `ARCHESTRA_OLLAMA_BASE_URL`     | Yes      | Ollama server base URL (e.g., `http://localhost:11434/v1` for default Ollama)    |
-| `ARCHESTRA_CHAT_OLLAMA_API_KEY` | No       | API key for Ollama server (optional, Ollama typically doesn't require auth)      |
+| Variable                        | Required | Description                                                                                  |
+| ------------------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `ARCHESTRA_OLLAMA_BASE_URL`     | No       | Ollama server base URL (default: `http://localhost:11434/v1`)                                |
+| `ARCHESTRA_CHAT_OLLAMA_API_KEY` | No       | API key for Ollama server (optional, should be used for the Ollama Cloud API)                |
 
 ### Important Notes
 
-- **Configure base URL to enable Ollama**: The Ollama provider is only available when `ARCHESTRA_OLLAMA_BASE_URL` is set. Without it, Ollama won't appear as an option in the platform.
-- **Default Ollama port**: Ollama runs on port `11434` by default. The OpenAI-compatible API is available at `http://localhost:11434/v1`.
-- **No API key required**: Ollama typically doesn't require authentication for local deployments.
+- **Enabled by default**: Ollama is enabled out of the box with a default base URL of `http://localhost:11434/v1`. Set `ARCHESTRA_OLLAMA_BASE_URL` to override the default if your Ollama server runs on a different host or port.
+- **No API key required**: Self-hosted Ollama typically doesn't require authentication. When adding an Ollama API key in the platform, the API key field is optional.
 - **Model availability**: Models must be pulled first using `ollama pull <model-name>` before they can be used through Archestra.
 
 ## Zhipu AI
@@ -255,3 +271,39 @@ See the [Vertex AI authentication guide](https://cloud.google.com/vertex-ai/docs
 - **API Key format**: Obtain your API key from the [Zhipu AI Platform](https://z.ai/)
 - **Free tier available**: The GLM-4.5-Flash model is available on the free tier for testing and development
 - **Chinese language support**: GLM models excel at Chinese language understanding and generation, while maintaining strong English capabilities
+
+## Amazon Bedrock
+
+### Supported Bedrock APIs
+
+- **Converse API** (`/converse`) - ✅ Fully supported ([AWS Docs](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html))
+- **Converse Stream API** (`/converse-stream`) - ✅ Fully supported ([AWS Docs](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html))
+- **InvokeModel API** (`/invoke`) -  ⚠️ Not yet supported  ([AWS Docs](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html))
+- **OpenAI-compatible API (Mantle)** -  ⚠️ Not yet supported ([AWS Docs](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html))
+
+### Bedrock Connection Details
+
+- **Base URL**: `http://localhost:9000/v1/bedrock/{profile-id}`
+- **Authentication**: Pass your [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) in the `Authorization` header as `Bearer <your-api-key>`
+
+### Environment Variables
+
+| Variable                                     | Required | Description                                                                                     |
+| -------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `ARCHESTRA_BEDROCK_BASE_URL`                 | Yes      | Bedrock runtime endpoint URL (e.g., `https://bedrock-runtime.us-east-1.amazonaws.com`)          |
+| `ARCHESTRA_BEDROCK_INFERENCE_PROFILE_PREFIX` | No       | Region prefix for cross-region inference profiles (e.g., `us` or `eu`)                          |
+| `ARCHESTRA_CHAT_BEDROCK_API_KEY`             | No       | Default API key for Bedrock (can be overridden per conversation/team/org)                       |
+
+#### `ARCHESTRA_BEDROCK_BASE_URL`
+
+This variable is **required** to enable the Bedrock provider. It specifies the regional endpoint for the Bedrock Runtime API. The URL format follows AWS regional endpoints:
+
+```
+https://bedrock-runtime.{region}.amazonaws.com
+```
+
+#### `ARCHESTRA_BEDROCK_INFERENCE_PROFILE_PREFIX`
+
+Some Bedrock models, such as Anthropic's Claude, require [cross-region inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html). Set this variable to enable those models. If not set, only models with on-demand inference support will be available.
+
+For more details, see [how inference works in Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-how.html).

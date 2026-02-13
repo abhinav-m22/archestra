@@ -23,7 +23,7 @@ export const allAvailableActions: Record<Resource, Action[]> = {
   dualLlmResult: ["create", "read", "update", "delete"],
   interaction: ["create", "read", "update", "delete"],
   organization: ["read", "update", "delete"],
-  ssoProvider: ["create", "read", "update", "delete"],
+  identityProvider: ["create", "read", "update", "delete"],
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
   internalMcpCatalog: ["create", "read", "update", "delete"],
@@ -67,7 +67,7 @@ export const editorPermissions: Record<Resource, Action[]> = {
   // Empty arrays required for Record<Resource, Action[]> type compatibility
   member: [],
   invitation: [],
-  ssoProvider: [],
+  identityProvider: [],
   ac: [],
 };
 
@@ -92,7 +92,7 @@ export const memberPermissions: Record<Resource, Action[]> = {
   // Empty arrays required for Record<Resource, Action[]> type compatibility
   member: [],
   invitation: [],
-  ssoProvider: [],
+  identityProvider: [],
   ac: [],
 };
 
@@ -126,7 +126,10 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetAgent]: {
     profile: ["read"],
   },
-  [RouteId.GetDefaultAgent]: {
+  [RouteId.GetDefaultMcpGateway]: {
+    profile: ["read"],
+  },
+  [RouteId.GetDefaultLlmProxy]: {
     profile: ["read"],
   },
   [RouteId.CreateAgent]: {
@@ -299,6 +302,15 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.DeleteInternalMcpCatalogItemByName]: {
     internalMcpCatalog: ["delete"],
   },
+  [RouteId.GetDeploymentYamlPreview]: {
+    internalMcpCatalog: ["read"],
+  },
+  [RouteId.ValidateDeploymentYaml]: {
+    internalMcpCatalog: ["read"],
+  },
+  [RouteId.ResetDeploymentYaml]: {
+    internalMcpCatalog: ["update"],
+  },
   [RouteId.GetMcpServers]: {
     mcpServer: ["read"],
   },
@@ -306,9 +318,6 @@ export const requiredEndpointPermissionsMap: Partial<
     mcpServer: ["read"],
   },
   [RouteId.GetMcpServerTools]: {
-    mcpServer: ["read"],
-  },
-  [RouteId.GetMcpServerLogs]: {
     mcpServer: ["read"],
   },
   [RouteId.InstallMcpServer]: {
@@ -320,11 +329,8 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.ReauthenticateMcpServer]: {
     mcpServer: ["update"],
   },
-  [RouteId.RestartMcpServer]: {
+  [RouteId.ReinstallMcpServer]: {
     mcpServer: ["update"],
-  },
-  [RouteId.RestartAllMcpServerInstallations]: {
-    mcpServer: ["admin"],
   },
   [RouteId.GetMcpServerInstallationStatus]: {
     mcpServer: ["read"],
@@ -437,6 +443,9 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.StreamChat]: {
     conversation: ["read"],
   },
+  [RouteId.StopChatStream]: {
+    conversation: ["read"],
+  },
   [RouteId.GetChatConversations]: {
     conversation: ["read"],
   },
@@ -464,7 +473,7 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetChatModels]: {
     conversation: ["read"],
   },
-  [RouteId.InvalidateChatModelsCache]: {
+  [RouteId.SyncChatModels]: {
     chatSettings: ["update"],
   },
   [RouteId.UpdateChatMessage]: {
@@ -496,6 +505,9 @@ export const requiredEndpointPermissionsMap: Partial<
   },
   [RouteId.DeleteChatApiKey]: {
     chatSettings: ["delete"],
+  },
+  [RouteId.GetModelsWithApiKeys]: {
+    chatSettings: ["read"],
   },
   [RouteId.GetPrompts]: {
     prompt: ["read"],
@@ -581,11 +593,11 @@ export const requiredEndpointPermissionsMap: Partial<
   },
 
   /**
-   * Get public SSO providers route (minimal info for login page)
+   * Get public identity providers route (minimal info for login page)
    * Available to unauthenticated users - only returns providerId, no secrets
    * Note: Auth is skipped in middleware for this route
    */
-  [RouteId.GetPublicSsoProviders]: {},
+  [RouteId.GetPublicIdentityProviders]: {},
   /**
    * Get public appearance settings (theme, logo, font) for login page
    * Available to unauthenticated users
@@ -593,24 +605,25 @@ export const requiredEndpointPermissionsMap: Partial<
    */
   [RouteId.GetPublicAppearance]: {},
   /**
-   * Get all SSO providers with full config (admin only)
+   * Get all identity providers with full config (admin only)
    * Returns sensitive data including client secrets
    */
-  [RouteId.GetSsoProviders]: {
-    ssoProvider: ["read"],
+  [RouteId.GetIdentityProviders]: {
+    identityProvider: ["read"],
   },
-  [RouteId.GetSsoProvider]: {
-    ssoProvider: ["read"],
+  [RouteId.GetIdentityProvider]: {
+    identityProvider: ["read"],
   },
-  [RouteId.CreateSsoProvider]: {
-    ssoProvider: ["create"],
+  [RouteId.CreateIdentityProvider]: {
+    identityProvider: ["create"],
   },
-  [RouteId.UpdateSsoProvider]: {
-    ssoProvider: ["update"],
+  [RouteId.UpdateIdentityProvider]: {
+    identityProvider: ["update"],
   },
-  [RouteId.DeleteSsoProvider]: {
-    ssoProvider: ["delete"],
+  [RouteId.DeleteIdentityProvider]: {
+    identityProvider: ["delete"],
   },
+  [RouteId.GetIdentityProviderIdpLogoutUrl]: {},
 
   [RouteId.GetOnboardingStatus]: {}, // Onboarding status route - available to all authenticated users (no specific permissions required)
   [RouteId.GetUserPermissions]: {}, // User permissions route - available to all authenticated users (no specific permissions required)
@@ -701,6 +714,12 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.DeleteChatOpsBinding]: {
     organization: ["update"],
   },
+  [RouteId.UpdateChatOpsBinding]: {
+    organization: ["update"],
+  },
+  [RouteId.UpdateChatOpsConfigInQuickstart]: {
+    organization: ["update"],
+  },
 };
 
 /**
@@ -773,13 +792,17 @@ export const requiredPagePermissionsMap: Record<string, Permissions> = {
   "/settings/llm-api-keys": {
     chatSettings: ["read"],
   },
-  "/settings/sso-providers": {
-    ssoProvider: ["read"],
+  "/settings/identity-providers": {
+    identityProvider: ["read"],
   },
   "/settings/secrets": {
     organization: ["update"],
   },
-  "/settings/incoming-email": {
+  // Agent Triggers
+  "/agent-triggers/ms-teams": {
+    organization: ["update"],
+  },
+  "/agent-triggers/email": {
     organization: ["update"],
   },
 

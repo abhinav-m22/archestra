@@ -10,9 +10,11 @@ import { SecretStorageTypeSchema } from "./mcp-server";
 // Supported chat providers
 export const SupportedChatProviderSchema = z.enum([
   "anthropic",
+  "bedrock",
   "cerebras",
-  "gemini",
   "cohere",
+  "gemini",
+  "mistral",
   "openai",
   "vllm",
   "ollama",
@@ -81,6 +83,10 @@ export const ChatApiKeyWithScopeInfoSchema = SelectChatApiKeySchema.extend({
   vaultSecretKey: z.string().nullable().optional(),
   // Secret storage type (database, vault, external_vault, or none)
   secretStorageType: SecretStorageTypeSchema.optional(),
+  // Best model ID for this API key (based on is_best marker)
+  bestModelId: z.string().nullable().optional(),
+  // Whether this key was included because it's configured on an agent (user may not have direct access)
+  isAgentKey: z.boolean().optional(),
 });
 
 export type ChatApiKeyWithScopeInfo = z.infer<
