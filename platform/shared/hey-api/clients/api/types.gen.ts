@@ -14473,6 +14473,85 @@ export type UpdateChatOpsConfigInQuickstartResponses = {
 
 export type UpdateChatOpsConfigInQuickstartResponse = UpdateChatOpsConfigInQuickstartResponses[keyof UpdateChatOpsConfigInQuickstartResponses];
 
+export type RefreshChatOpsChannelDiscoveryData = {
+    body: {
+        provider: 'ms-teams';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/chatops/channel-discovery/refresh';
+};
+
+export type RefreshChatOpsChannelDiscoveryErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type RefreshChatOpsChannelDiscoveryError = RefreshChatOpsChannelDiscoveryErrors[keyof RefreshChatOpsChannelDiscoveryErrors];
+
+export type RefreshChatOpsChannelDiscoveryResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type RefreshChatOpsChannelDiscoveryResponse = RefreshChatOpsChannelDiscoveryResponses[keyof RefreshChatOpsChannelDiscoveryResponses];
+
 export type CohereChatWithDefaultAgentData = {
     body?: CohereChatRequestInput;
     headers?: {
@@ -21993,13 +22072,6 @@ export type GetMcpToolCallsResponses = {
             toolResult: unknown;
             userId: string | null;
             authMethod: 'oauth' | 'user_token' | 'org_token' | 'team_token' | 'external_idp';
-            externalIdentity?: {
-                idpId: string;
-                idpName: string;
-                sub: string;
-                email: string | null;
-                name: string | null;
-            } | null;
             createdAt: string;
             userName: string | null;
         }>;
@@ -22106,13 +22178,6 @@ export type GetMcpToolCallResponses = {
         toolResult: unknown;
         userId: string | null;
         authMethod: 'oauth' | 'user_token' | 'org_token' | 'team_token' | 'external_idp';
-        externalIdentity?: {
-            idpId: string;
-            idpName: string;
-            sub: string;
-            email: string | null;
-            name: string | null;
-        } | null;
         createdAt: string;
         userName: string | null;
     };
