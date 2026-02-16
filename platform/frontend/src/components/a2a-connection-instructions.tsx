@@ -56,17 +56,20 @@ export function A2AConnectionInstructions({
   const [connectionUrl, setConnectionUrl] = useState<string>(
     externalProxyUrls.length >= 1 ? externalProxyUrls[0] : internalProxyUrl,
   );
-  const [showExposedToken, setShowExposedToken] = useState(false);
+  const [showExposedTokenSend, setShowExposedTokenSend] = useState(false);
+  const [showExposedTokenCard, setShowExposedTokenCard] = useState(false);
   const [exposedTokenValue, setExposedTokenValue] = useState<string | null>(
     null,
   );
-  const [isCopyingCode, setIsCopyingCode] = useState(false);
+  const [isCopyingCurlSend, setIsCopyingCurlSend] = useState(false);
+  const [isCopyingCurlCard, setIsCopyingCurlCard] = useState(false);
+
+  const [isLoadingTokenSend, setIsLoadingTokenSend] = useState(false);
+  const [isLoadingTokenCard, setIsLoadingTokenCard] = useState(false);
 
   // Mutations for fetching token values
   const fetchUserTokenMutation = useFetchUserTokenValue();
   const fetchTeamTokenMutation = useFetchTeamTokenValue();
-  const isLoadingToken =
-    fetchUserTokenMutation.isPending || fetchTeamTokenMutation.isPending;
 
   // Email invocation - check both global feature AND agent-level setting
   const globalEmailEnabled = features?.incomingEmail?.enabled ?? false;
@@ -122,9 +125,9 @@ export function A2AConnectionInstructions({
     return "Select token";
   };
 
-  // Determine display token based on selection
+  // Determine display token based on selection and exposure
   const tokenForDisplay =
-    showExposedToken && exposedTokenValue
+    (showExposedTokenSend || showExposedTokenCard) && exposedTokenValue
       ? exposedTokenValue
       : isPersonalTokenSelected
         ? userToken
@@ -134,42 +137,82 @@ export function A2AConnectionInstructions({
           ? `${selectedTeamToken.tokenStart}***`
           : "ask-admin-for-access-token";
 
-  const handleExposeToken = useCallback(async () => {
-    if (showExposedToken) {
-      // Hide token
-      setShowExposedToken(false);
-      setExposedTokenValue(null);
-      return;
-    }
+  const handleExposeToken = useCallback(
+    async (section: "send" | "card") => {
+      const isCurrentlyExposed =
+        section === "send" ? showExposedTokenSend : showExposedTokenCard;
 
-    let tokenValue: string | null = null;
+      if (isCurrentlyExposed) {
+        // Hide token
+        if (section === "send") {
+          setShowExposedTokenSend(false);
+        } else {
+          setShowExposedTokenCard(false);
+        }
 
-    if (isPersonalTokenSelected) {
-      // Fetch personal token value
-      const result = await fetchUserTokenMutation.mutateAsync();
-      tokenValue = result?.value ?? null;
-    } else {
-      // Fetch team token value
-      if (!selectedTeamToken) {
+        // Only clear token value if both sections are hidden
+        if (!showExposedTokenSend && !showExposedTokenCard) {
+          setExposedTokenValue(null);
+        }
         return;
       }
-      const result = await fetchTeamTokenMutation.mutateAsync(
-        selectedTeamToken.id,
-      );
-      tokenValue = result?.value ?? null;
-    }
 
-    if (tokenValue) {
-      setExposedTokenValue(tokenValue);
-      setShowExposedToken(true);
-    }
-  }, [
-    isPersonalTokenSelected,
-    selectedTeamToken,
-    showExposedToken,
-    fetchUserTokenMutation,
-    fetchTeamTokenMutation,
-  ]);
+      // Set loading state for the specific section
+      if (section === "send") {
+        setIsLoadingTokenSend(true);
+      } else {
+        setIsLoadingTokenCard(true);
+      }
+
+      let tokenValue: string | null = null;
+
+      if (isPersonalTokenSelected) {
+        // Fetch personal token value
+        const result = await fetchUserTokenMutation.mutateAsync();
+        tokenValue = result?.value ?? null;
+      } else {
+        // Fetch team token value
+        if (!selectedTeamToken) {
+          if (section === "send") {
+            setIsLoadingTokenSend(false);
+          } else {
+            setIsLoadingTokenCard(false);
+          }
+          return;
+        }
+        const result = await fetchTeamTokenMutation.mutateAsync(
+          selectedTeamToken.id,
+        );
+        tokenValue = result?.value ?? null;
+      }
+
+      if (tokenValue) {
+        setExposedTokenValue(tokenValue);
+        if (section === "send") {
+          setShowExposedTokenSend(true);
+          setIsLoadingTokenSend(false);
+        } else {
+          setShowExposedTokenCard(true);
+          setIsLoadingTokenCard(false);
+        }
+      } else {
+        // Clear loading state if token fetch failed
+        if (section === "send") {
+          setIsLoadingTokenSend(false);
+        } else {
+          setIsLoadingTokenCard(false);
+        }
+      }
+    },
+    [
+      isPersonalTokenSelected,
+      selectedTeamToken,
+      showExposedTokenSend,
+      showExposedTokenCard,
+      fetchUserTokenMutation,
+      fetchTeamTokenMutation,
+    ],
+  );
 
   const handleCopyUrl = useCallback(async () => {
     await navigator.clipboard.writeText(a2aEndpoint);
@@ -220,7 +263,13 @@ curl -X GET "${agentCardUrl}" \\
 
   const handleCopyCode = useCallback(
     async (code: string, exampleType: "send" | "card") => {
-      setIsCopyingCode(true);
+      // Set the appropriate loading state
+      if (exampleType === "send") {
+        setIsCopyingCurlSend(true);
+      } else {
+        setIsCopyingCurlCard(true);
+      }
+
       // Fetch real token if available
       let tokenValue = tokenForDisplay;
 
@@ -247,13 +296,14 @@ curl -X GET "${agentCardUrl}" \\
       if (exampleType === "send") {
         setCopiedCurlSend(true);
         setTimeout(() => setCopiedCurlSend(false), 2000);
+        setIsCopyingCurlSend(false);
       } else {
         setCopiedCurlCard(true);
         setTimeout(() => setCopiedCurlCard(false), 2000);
+        setIsCopyingCurlCard(false);
       }
 
       toast.success("Code copied with token");
-      setIsCopyingCode(false);
     },
     [
       tokenForDisplay,
@@ -339,8 +389,9 @@ curl -X GET "${agentCardUrl}" \\
           value={effectiveTokenId}
           onValueChange={(value) => {
             setSelectedTokenId(value);
-            // Reset exposed token state when changing token selection
-            setShowExposedToken(false);
+            // Reset exposed token states when changing token selection
+            setShowExposedTokenSend(false);
+            setShowExposedTokenCard(false);
             setExposedTokenValue(null);
           }}
         >
@@ -419,18 +470,15 @@ curl -X GET "${agentCardUrl}" \\
               variant="ghost"
               size="sm"
               className="gap-2"
-              onClick={handleExposeToken}
-              disabled={
-                isLoadingToken ||
-                (!isPersonalTokenSelected && !hasProfileAdminPermission)
-              }
+              onClick={() => handleExposeToken("send")}
+              disabled={!isPersonalTokenSelected && !hasProfileAdminPermission}
             >
-              {isLoadingToken ? (
+              {isLoadingTokenSend ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Loading...</span>
                 </>
-              ) : showExposedToken ? (
+              ) : showExposedTokenSend ? (
                 <>
                   <EyeOff className="h-4 w-4" />
                   <span>Hide token</span>
@@ -447,9 +495,9 @@ curl -X GET "${agentCardUrl}" \\
               size="sm"
               className="gap-2"
               onClick={() => handleCopyCode(curlCode, "send")}
-              disabled={isCopyingCode}
+              disabled={isCopyingCurlSend}
             >
-              {isCopyingCode ? (
+              {isCopyingCurlSend ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Copying...</span>
@@ -479,18 +527,15 @@ curl -X GET "${agentCardUrl}" \\
               variant="ghost"
               size="sm"
               className="gap-2"
-              onClick={handleExposeToken}
-              disabled={
-                isLoadingToken ||
-                (!isPersonalTokenSelected && !hasProfileAdminPermission)
-              }
+              onClick={() => handleExposeToken("card")}
+              disabled={!isPersonalTokenSelected && !hasProfileAdminPermission}
             >
-              {isLoadingToken ? (
+              {isLoadingTokenCard ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Loading...</span>
                 </>
-              ) : showExposedToken ? (
+              ) : showExposedTokenCard ? (
                 <>
                   <EyeOff className="h-4 w-4" />
                   <span>Hide token</span>
@@ -507,9 +552,9 @@ curl -X GET "${agentCardUrl}" \\
               size="sm"
               className="gap-2"
               onClick={() => handleCopyCode(agentCardCurlCode, "card")}
-              disabled={isCopyingCode}
+              disabled={isCopyingCurlCard}
             >
-              {isCopyingCode ? (
+              {isCopyingCurlCard ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Copying...</span>
