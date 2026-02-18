@@ -191,49 +191,108 @@ describe("OrganizationModel", () => {
 
   describe("patch logo validation (via UpdateOrganizationSchema)", () => {
     const parseLogoField = (logo: string | null) =>
-      UpdateOrganizationSchema.partial().safeParse({ logo });
+      UpdateOrganizationSchema.shape.logo.safeParse(logo);
 
-    test("should reject non-PNG data URI prefix", () => {
-      const result = parseLogoField("data:image/jpeg;base64,/9j/4AAQSkZJRg==");
+    describe("MIME type validation", () => {
+      test("should reject non-PNG data URI prefix", () => {
+        const result = parseLogoField(
+          "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+        );
 
-      expect(result.success).toBe(false);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("PNG");
+        }
+      });
+
+      test("should reject WebP data URI prefix", () => {
+        const result = parseLogoField(
+          "data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAQAcJaQAA3AA/v3AgAA",
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("PNG");
+        }
+      });
     });
 
-    test("should reject invalid Base64 payload", () => {
-      const result = parseLogoField("data:image/png;base64,NotAnImageJustText");
+    describe("Base64 validation", () => {
+      test("should reject invalid Base64 payload", () => {
+        const result = parseLogoField(
+          "data:image/png;base64,NotAnImageJustText",
+        );
 
-      expect(result.success).toBe(false);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("Base64");
+        }
+      });
+
+      test("should reject valid Base64 but non-PNG content", () => {
+        // "Hello World" encoded as Base64 — valid Base64 but not a PNG
+        const result = parseLogoField("data:image/png;base64,SGVsbG8gV29ybGQ=");
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("PNG image data");
+        }
+      });
     });
 
-    test("should reject valid Base64 but non-PNG content", () => {
-      // "Hello World" encoded as Base64 — valid Base64 but not a PNG
-      const result = parseLogoField("data:image/png;base64,SGVsbG8gV29ybGQ=");
+    describe("Format validation", () => {
+      test("should reject plain text without data URI prefix", () => {
+        const result = parseLogoField("just-a-random-string");
 
-      expect(result.success).toBe(false);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("data URI");
+        }
+      });
+
+      test("should reject empty string", () => {
+        const result = parseLogoField("");
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+          expect(result.error.issues[0].message).toContain("data URI");
+        }
+      });
+
+      test("should reject malformed data URI", () => {
+        const result = parseLogoField("data:image/png;");
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues).toHaveLength(1);
+        }
+      });
     });
 
-    test("should reject plain text without data URI prefix", () => {
-      const result = parseLogoField("just-a-random-string");
+    describe("Valid inputs", () => {
+      test("should accept null", () => {
+        const result = parseLogoField(null);
 
-      expect(result.success).toBe(false);
-    });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data).toBeNull();
+        }
+      });
 
-    test("should reject empty string", () => {
-      const result = parseLogoField("");
+      test("should accept valid PNG data URI", () => {
+        const result = parseLogoField(VALID_PNG_BASE64);
 
-      expect(result.success).toBe(false);
-    });
-
-    test("should accept null", () => {
-      const result = parseLogoField(null);
-
-      expect(result.success).toBe(true);
-    });
-
-    test("should accept valid PNG data URI", () => {
-      const result = parseLogoField(VALID_PNG_BASE64);
-
-      expect(result.success).toBe(true);
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data).toBe(VALID_PNG_BASE64);
+        }
+      });
     });
   });
 
