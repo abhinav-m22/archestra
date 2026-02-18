@@ -59,7 +59,7 @@ export function PromptVersionHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Agent's prompts history: {agent?.name}</DialogTitle>
+          <DialogTitle>Version History: {agent?.name}</DialogTitle>
           <DialogDescription>
             View and rollback to previous versions of this agent
           </DialogDescription>

@@ -783,7 +783,7 @@ export function AgentDialog({
                 }}
                 className="text-xs h-auto p-0 ml-2"
               >
-                Agent's prompts history
+                Version History
               </Button>
             )}
           </DialogTitle>
