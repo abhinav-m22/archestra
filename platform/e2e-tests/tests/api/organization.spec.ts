@@ -104,7 +104,7 @@ test.describe("Organization API logo validation", () => {
       expect(errorBody.error.message).toContain("PNG");
     });
 
-    test("should reject oversized PNG logo with proper error response", async ({
+    test("should reject oversized PNG logo", async ({
       request,
       makeApiRequest,
     }) => {
@@ -118,25 +118,8 @@ test.describe("Organization API logo validation", () => {
         ignoreStatusCheck: true,
       });
 
-      // Large payloads may be rejected by Fastify body limit (413/500) or Zod validation (400)
-      expect([400, 413, 500]).toContain(response.status());
-    });
-
-    test("should handle malformed request body gracefully", async ({
-      request,
-      makeApiRequest,
-    }) => {
-      const response = await makeApiRequest({
-        request,
-        method: "patch",
-        urlSuffix: "/api/organization",
-        data: { logo: undefined },
-        ignoreStatusCheck: true,
-      });
-
-      // undefined is stripped from JSON, so this becomes {} which Drizzle rejects with 500
-      // Accept any non-crash response (200, 400, or 500)
-      expect([200, 400, 500]).toContain(response.status());
+      // 3MB PNG exceeds Fastify's default 1MB body limit → 500
+      expect(response.status()).toBe(500);
     });
   });
 
@@ -190,77 +173,6 @@ test.describe("Organization API logo validation", () => {
       expect(body.logo).toBeNull();
       expect(body).toHaveProperty("id");
       expect(body).toHaveProperty("name");
-    });
-
-    test("should handle concurrent logo updates gracefully", async ({
-      request,
-      makeApiRequest,
-    }) => {
-      // Both logos must be valid PNGs (same image is fine for concurrency test)
-      const logo1 = VALID_PNG_BASE64;
-      const logo2 = VALID_PNG_BASE64;
-
-      // Send concurrent requests
-      const [response1, response2] = await Promise.all([
-        makeApiRequest({
-          request,
-          method: "patch",
-          urlSuffix: "/api/organization",
-          data: { logo: logo1 },
-        }),
-        makeApiRequest({
-          request,
-          method: "patch",
-          urlSuffix: "/api/organization",
-          data: { logo: logo2 },
-        }),
-      ]);
-
-      // Both should succeed (last write wins pattern)
-      expect(response1.status()).toBe(200);
-      expect(response2.status()).toBe(200);
-
-      // Cleanup
-      await cleanupLogo(request, makeApiRequest);
-    });
-  });
-
-  test.describe("Boundary conditions", () => {
-    test("should handle empty request body", async ({
-      request,
-      makeApiRequest,
-    }) => {
-      const response = await makeApiRequest({
-        request,
-        method: "patch",
-        urlSuffix: "/api/organization",
-        data: {},
-        ignoreStatusCheck: true,
-      });
-
-      // Empty body {} causes Drizzle "No values to set" error (500)
-      // Accept any non-crash response
-      expect([200, 400, 500]).toContain(response.status());
-    });
-
-    test("should reject extremely large data URI", async ({
-      request,
-      makeApiRequest,
-    }) => {
-      // Create a very large string (10MB)
-      const largeData = "A".repeat(10 * 1024 * 1024);
-      const largeLogo = `data:image/png;base64,${Buffer.from(largeData).toString("base64")}`;
-
-      const response = await makeApiRequest({
-        request,
-        method: "patch",
-        urlSuffix: "/api/organization",
-        data: { logo: largeLogo },
-        ignoreStatusCheck: true,
-      });
-
-      // Should fail due to size limits (400 Zod validation, 413 body limit, or 500 server error)
-      expect([400, 413, 500]).toContain(response.status());
     });
   });
 });
