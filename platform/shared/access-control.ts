@@ -126,6 +126,9 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.GetAgent]: {
     profile: ["read"],
   },
+  [RouteId.GetAgentVersions]: {
+    profile: ["read"],
+  },
   [RouteId.GetDefaultMcpGateway]: {
     profile: ["read"],
   },
@@ -140,6 +143,9 @@ export const requiredEndpointPermissionsMap: Partial<
   },
   [RouteId.DeleteAgent]: {
     profile: ["delete"],
+  },
+  [RouteId.RollbackAgent]: {
+    profile: ["update"],
   },
   [RouteId.GetAgentTools]: {
     profile: ["read"],
