@@ -1,6 +1,8 @@
-import { expect, test } from "./fixtures";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { APIRequestContext, APIResponse } from "@playwright/test";
+import type { TestFixtures } from "./fixtures";
+import { expect, test } from "./fixtures";
 
 // Test constants
 const VALID_PNG_BASE64 =
@@ -20,21 +22,24 @@ const createOversizedLogoDataUri = (): string => {
 
 // Helper function to validate error response structure
 const expectValidationError = async (
-  response: any,
-  expectedStatus: number = 400
+  response: APIResponse,
+  expectedStatus = 400,
 ) => {
   expect(response.status()).toBe(expectedStatus);
-  
+
   const body = await response.json();
   expect(body).toHaveProperty("error");
   expect(typeof body.error).toBe("string");
   expect(body.error.length).toBeGreaterThan(0);
-  
+
   return body;
 };
 
 // Helper function for cleanup
-const cleanupLogo = async (request: any, makeApiRequest: any) => {
+const cleanupLogo = async (
+  request: APIRequestContext,
+  makeApiRequest: TestFixtures["makeApiRequest"],
+) => {
   try {
     await makeApiRequest({
       request,
@@ -103,7 +108,7 @@ test.describe("Organization API logo validation", () => {
       makeApiRequest,
     }) => {
       const oversizedLogo = createOversizedLogoDataUri();
-      
+
       const response = await makeApiRequest({
         request,
         method: "patch",
@@ -146,7 +151,7 @@ test.describe("Organization API logo validation", () => {
       });
 
       expect(response.status()).toBe(200);
-      
+
       const body = await response.json();
       expect(body).toHaveProperty("logo");
       expect(body.logo).toBe(VALID_PNG_BASE64);
@@ -178,7 +183,7 @@ test.describe("Organization API logo validation", () => {
       });
 
       expect(response.status()).toBe(200);
-      
+
       const body = await response.json();
       expect(body.logo).toBeNull();
       expect(body).toHaveProperty("id");
@@ -230,7 +235,7 @@ test.describe("Organization API logo validation", () => {
       });
 
       expect(response.status()).toBe(200);
-      
+
       const body = await response.json();
       expect(body).toHaveProperty("id");
     });
@@ -242,7 +247,7 @@ test.describe("Organization API logo validation", () => {
       // Create a very large string (10MB)
       const largeData = "A".repeat(10 * 1024 * 1024);
       const largeLogo = `data:image/png;base64,${Buffer.from(largeData).toString("base64")}`;
-      
+
       const response = await makeApiRequest({
         request,
         method: "patch",
