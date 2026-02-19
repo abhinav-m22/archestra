@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/hooks/use-platform";
+import { SHORTCUT_NEW_CHAT, SHORTCUT_SEARCH } from "@/lib/keyboard-shortcuts";
 
 export function useConversationSearch() {
   const router = useRouter();
@@ -17,7 +18,12 @@ export function useConversationSearch() {
 
       // Cmd/Ctrl+K should work even when focused on input elements
       // This is standard behavior for "quick open" shortcuts (VS Code, Slack, etc.)
-      if (isModKey && event.key === "k" && !event.shiftKey && !event.altKey) {
+      if (
+        isModKey &&
+        event.key === SHORTCUT_SEARCH.key &&
+        !event.shiftKey &&
+        !event.altKey
+      ) {
         event.preventDefault();
         event.stopPropagation();
         // Using functional update (prev => !prev) to avoid stale closure issues.
@@ -28,7 +34,7 @@ export function useConversationSearch() {
 
       // Alt + N: New Chat (avoids Cmd/Ctrl+N New Window conflict)
       // Use event.code because on macOS, Option+N is a dead key (˜) so event.key is "Dead"
-      if (event.altKey && event.code === "KeyN") {
+      if (event.altKey && event.code === SHORTCUT_NEW_CHAT.code) {
         event.preventDefault();
         event.stopPropagation();
         setIsOpen(false);

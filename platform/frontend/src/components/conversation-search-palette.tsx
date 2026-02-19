@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
   CommandDialog,
   CommandEmpty,
@@ -31,6 +32,12 @@ import { usePlatform } from "@/hooks/use-platform";
 import { useIsAuthenticated } from "@/lib/auth.hook";
 import { useConversations, useDeleteConversation } from "@/lib/chat.query";
 import { getConversationDisplayTitle } from "@/lib/chat-utils";
+import {
+  SHORTCUT_DELETE,
+  SHORTCUT_NEW_CHAT,
+  SHORTCUT_SEARCH,
+  SHORTCUT_SIDEBAR,
+} from "@/lib/keyboard-shortcuts";
 
 /**
  * Extracts all text content from messages for preview purposes.
@@ -258,7 +265,7 @@ export function ConversationSearchPalette({
       if (searchQuery) return;
 
       // 'd' for delete when conversation is selected
-      if (e.key === "d" && selectedValue?.startsWith("conv-")) {
+      if (e.key === SHORTCUT_DELETE.key && selectedValue?.startsWith("conv-")) {
         e.preventDefault();
         e.stopPropagation();
         const conversationId = selectedValue.substring(5);
@@ -378,11 +385,12 @@ export function ConversationSearchPalette({
             {displayTitle}
           </span>
           {isPending && (
-            <div className="absolute right-3 top-2.5 bg-destructive px-2 py-0.5 rounded-md shadow-sm animate-in fade-in zoom-in duration-200">
-              <span className="text-[10px] font-medium text-destructive-foreground">
-                Press "d" again to confirm deletion
-              </span>
-            </div>
+            <Badge
+              variant="destructive"
+              className="absolute right-3 top-2.5 text-[10px] shadow-sm animate-in fade-in zoom-in duration-200"
+            >
+              Press "{SHORTCUT_DELETE.label}" to confirm
+            </Badge>
           )}
         </div>
         {isSearchActive && preview && (
@@ -533,7 +541,7 @@ export function ConversationSearchPalette({
                 {modKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                K
+                {SHORTCUT_SEARCH.label}
               </kbd>
             </div>
             <span className="text-muted-foreground/70">Search</span>
@@ -544,14 +552,14 @@ export function ConversationSearchPalette({
                 {altKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                N
+                {SHORTCUT_NEW_CHAT.label}
               </kbd>
             </div>
             <span className="text-muted-foreground/70">New Chat</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-              D
+              {SHORTCUT_DELETE.label}
             </kbd>
             <span className="text-muted-foreground/70">Delete Chat</span>
           </div>
@@ -561,7 +569,7 @@ export function ConversationSearchPalette({
                 {modKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                B
+                {SHORTCUT_SIDEBAR.label}
               </kbd>
             </div>
             <span className="text-muted-foreground/70">Sidebar</span>
