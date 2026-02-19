@@ -6,26 +6,18 @@ import {
   Bot,
   Cable,
   Home,
-  Layers,
-  MessageSquare,
+  MessageCircle,
   MessagesSquare,
-  Package,
+  Network,
   Pencil,
+  Router,
   Settings,
+  Shield,
   Wrench,
+  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   CommandDialog,
   CommandEmpty,
@@ -102,9 +94,9 @@ export function ConversationSearchPalette({
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
-  const [conversationToDelete, setConversationToDelete] = useState<
-    string | null
-  >(null);
+  const [isPendingDeletion, setIsPendingDeletion] = useState<string | null>(
+    null,
+  );
   const isAuthenticated = useIsAuthenticated();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -139,9 +131,14 @@ export function ConversationSearchPalette({
     if (!open) {
       setSearchQuery("");
       setSelectedValue("");
-      setConversationToDelete(null);
+      setIsPendingDeletion(null);
     }
   }, [open]);
+
+  // Reset pending deletion when selection or search query changes
+  useEffect(() => {
+    setIsPendingDeletion(null);
+  }, []);
 
   const handleSelectConversation = (conversationId: string) => {
     router.push(`/chat?conversation=${conversationId}`);
@@ -153,12 +150,13 @@ export function ConversationSearchPalette({
     onOpenChange(false);
   }, [router, onOpenChange]);
 
-  const handleDeleteConversation = useCallback(() => {
-    if (conversationToDelete) {
-      deleteMutation.mutate(conversationToDelete);
-      setConversationToDelete(null);
-    }
-  }, [conversationToDelete, deleteMutation]);
+  const handleDeleteConversation = useCallback(
+    (conversationId: string) => {
+      deleteMutation.mutate(conversationId);
+      setIsPendingDeletion(null);
+    },
+    [deleteMutation],
+  );
 
   // Keyboard shortcuts for search palette
   useEffect(() => {
@@ -170,7 +168,12 @@ export function ConversationSearchPalette({
         e.preventDefault();
         e.stopPropagation();
         const conversationId = selectedValue.substring(5);
-        setConversationToDelete(conversationId);
+
+        if (isPendingDeletion === conversationId) {
+          handleDeleteConversation(conversationId);
+        } else {
+          setIsPendingDeletion(conversationId);
+        }
       }
     };
 
@@ -178,7 +181,7 @@ export function ConversationSearchPalette({
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () =>
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [open, selectedValue]);
+  }, [open, selectedValue, isPendingDeletion, handleDeleteConversation]);
 
   /** Generates a contextual preview snippet with search term context */
   const getPreviewText = (
@@ -261,19 +264,27 @@ export function ConversationSearchPalette({
     const preview = isSearchActive
       ? getPreviewText(conv.messages, debouncedSearch)
       : "";
+    const isPending = isPendingDeletion === conv.id;
 
     return (
       <CommandItem
         key={conv.id}
         value={`conv-${conv.id}`}
         onSelect={() => handleSelectConversation(conv.id)}
-        className="flex flex-col items-start gap-1.5 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm w-full"
+        className="flex flex-col items-start gap-1.5 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm w-full relative"
       >
         <div className="flex items-start gap-2 w-full min-w-0">
-          <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="text-sm flex-1 min-w-0 break-words leading-snug line-clamp-2">
             {displayTitle}
           </span>
+          {isPending && (
+            <div className="absolute right-3 top-2.5 bg-destructive px-2 py-0.5 rounded-md shadow-sm animate-in fade-in zoom-in duration-200">
+              <span className="text-[10px] font-medium text-destructive-foreground">
+                Press "d" again to confirm deletion
+              </span>
+            </div>
+          )}
         </div>
         {isSearchActive && preview && (
           <div className="text-xs text-muted-foreground line-clamp-2 w-full pl-6">
@@ -287,9 +298,9 @@ export function ConversationSearchPalette({
   // Product navigation items matching sidebar names
   const navigationItems = [
     {
-      icon: MessageSquare,
-      label: "Chats",
-      value: "chats",
+      icon: MessageCircle,
+      label: "New Chat",
+      value: "new-chat-nav",
       keywords: "chat conversation",
       href: "/chat",
     },
@@ -301,11 +312,25 @@ export function ConversationSearchPalette({
       href: "/agents",
     },
     {
-      icon: Layers,
-      label: "Profiles",
-      value: "profiles",
-      keywords: "profiles templates",
-      href: "/profiles",
+      icon: Zap,
+      label: "Agent Triggers",
+      value: "agent-triggers",
+      keywords: "triggers automation webhooks ms teams",
+      href: "/agent-triggers/ms-teams",
+    },
+    {
+      icon: Shield,
+      label: "MCP Gateways",
+      value: "mcp-gateways",
+      keywords: "gateways security mcp",
+      href: "/mcp-gateways",
+    },
+    {
+      icon: Network,
+      label: "LLM Proxies",
+      value: "llm-proxies",
+      keywords: "proxies llm network",
+      href: "/llm-proxies",
     },
     {
       icon: MessagesSquare,
@@ -322,7 +347,7 @@ export function ConversationSearchPalette({
       href: "/tools",
     },
     {
-      icon: Package,
+      icon: Router,
       label: "MCP Registry",
       value: "mcp-registry",
       keywords: "mcp catalog registry servers",
@@ -352,218 +377,192 @@ export function ConversationSearchPalette({
   ];
 
   return (
-    <>
-      <CommandDialog
-        open={open}
-        onOpenChange={onOpenChange}
-        title="Search conversations"
-        description="Search through your conversation history"
-        className="max-w-2xl"
-        shouldFilter={false}
-        value={selectedValue}
-        onValueChange={setSelectedValue}
-      >
-        <CommandInput
-          ref={inputRef}
-          placeholder="Search or navigate..."
-          value={searchQuery}
-          onValueChange={setSearchQuery}
-        />
-        <CommandList className="max-h-[500px]">
-          {isLoading && !isSearching ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              Loading conversations...
-            </div>
-          ) : isSearchingAndFetching ? (
-            <SearchSkeleton />
-          ) : (
-            <>
-              {!searchQuery.trim() && (
-                <>
-                  <CommandGroup>
-                    <CommandItem
-                      value="new-chat"
-                      onSelect={handleNewChat}
-                      className="flex items-center gap-2 px-3 py-3 cursor-pointer aria-selected:bg-accent"
-                    >
-                      <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="font-medium">New chat</span>
-                    </CommandItem>
-                  </CommandGroup>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Search conversations"
+      description="Search through your conversation history"
+      className="max-w-2xl"
+      shouldFilter={false}
+      value={selectedValue}
+      onValueChange={setSelectedValue}
+    >
+      <CommandInput
+        ref={inputRef}
+        placeholder="Search or navigate..."
+        value={searchQuery}
+        onValueChange={setSearchQuery}
+      />
+      <CommandList className="max-h-[500px]">
+        {isLoading && !isSearching ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            Loading conversations...
+          </div>
+        ) : isSearchingAndFetching ? (
+          <SearchSkeleton />
+        ) : (
+          <>
+            {!searchQuery.trim() && (
+              <>
+                <CommandGroup>
+                  <CommandItem
+                    value="new-chat"
+                    onSelect={handleNewChat}
+                    className="flex items-center gap-2 px-3 py-3 cursor-pointer aria-selected:bg-accent"
+                  >
+                    <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="font-medium">New chat</span>
+                  </CommandItem>
+                </CommandGroup>
 
-                  <CommandSeparator className="my-2" />
+                <CommandSeparator className="my-2" />
 
-                  <div className="px-2 pb-1.5">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Pages
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Jump to
-                      </span>
-                    </div>
+                <div className="px-2 pb-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Pages
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Jump to
+                    </span>
                   </div>
-                  <CommandGroup>
-                    {navigationItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <CommandItem
-                          key={item.value}
-                          value={`${item.value} ${item.keywords} ${item.label}`}
-                          onSelect={() => {
-                            router.push(item.href);
-                            onOpenChange(false);
-                          }}
-                          className="flex items-center gap-3 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm"
-                        >
-                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="text-sm font-medium">
-                            {item.label}
-                          </span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                </div>
+                <CommandGroup>
+                  {navigationItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <CommandItem
+                        key={item.value}
+                        value={`${item.value} ${item.keywords} ${item.label}`}
+                        onSelect={() => {
+                          router.push(item.href);
+                          onOpenChange(false);
+                        }}
+                        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer aria-selected:bg-accent rounded-sm"
+                      >
+                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          {item.label}
+                        </span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
 
-                  <CommandSeparator className="my-2" />
+                <CommandSeparator className="my-2" />
 
-                  <div className="px-2 pb-1.5">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Chats
-                      </span>
-                    </div>
+                <div className="px-2 pb-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Chats
+                    </span>
                   </div>
-                </>
-              )}
+                </div>
+              </>
+            )}
 
-              {debouncedSearch.trim() ? (
-                conversations.length === 0 ? (
-                  <CommandEmpty>No conversations found.</CommandEmpty>
-                ) : (
-                  <CommandGroup heading="Search Results">
-                    {conversations.map((conv) => renderConversationItem(conv))}
+            {debouncedSearch.trim() ? (
+              conversations.length === 0 ? (
+                <CommandEmpty>No conversations found.</CommandEmpty>
+              ) : (
+                <CommandGroup heading="Search Results">
+                  {conversations.map((conv) => renderConversationItem(conv))}
+                </CommandGroup>
+              )
+            ) : groupedConversations ? (
+              <>
+                {groupedConversations.today.length > 0 && (
+                  <CommandGroup heading="Today">
+                    {groupedConversations.today.map((conv) =>
+                      renderConversationItem(conv),
+                    )}
                   </CommandGroup>
-                )
-              ) : groupedConversations ? (
-                <>
-                  {groupedConversations.today.length > 0 && (
-                    <CommandGroup heading="Today">
-                      {groupedConversations.today.map((conv) =>
-                        renderConversationItem(conv),
-                      )}
-                    </CommandGroup>
-                  )}
-                  {groupedConversations.yesterday.length > 0 && (
-                    <CommandGroup heading="Yesterday">
-                      {groupedConversations.yesterday.map((conv) =>
-                        renderConversationItem(conv),
-                      )}
-                    </CommandGroup>
-                  )}
-                  {groupedConversations.previous7Days.length > 0 && (
-                    <CommandGroup heading="Previous 7 Days">
-                      {groupedConversations.previous7Days.map((conv) =>
-                        renderConversationItem(conv),
-                      )}
-                    </CommandGroup>
-                  )}
-                  {groupedConversations.older.length > 0 && (
-                    <CommandGroup heading="Previous 30 Days">
-                      {groupedConversations.older.map((conv) =>
-                        renderConversationItem(conv),
-                      )}
-                    </CommandGroup>
-                  )}
-                  {conversations.length === 0 && (
-                    <CommandEmpty>No conversations yet.</CommandEmpty>
-                  )}
-                </>
-              ) : null}
-            </>
-          )}
-        </CommandList>
+                )}
+                {groupedConversations.yesterday.length > 0 && (
+                  <CommandGroup heading="Yesterday">
+                    {groupedConversations.yesterday.map((conv) =>
+                      renderConversationItem(conv),
+                    )}
+                  </CommandGroup>
+                )}
+                {groupedConversations.previous7Days.length > 0 && (
+                  <CommandGroup heading="Previous 7 Days">
+                    {groupedConversations.previous7Days.map((conv) =>
+                      renderConversationItem(conv),
+                    )}
+                  </CommandGroup>
+                )}
+                {groupedConversations.older.length > 0 && (
+                  <CommandGroup heading="Previous 30 Days">
+                    {groupedConversations.older.map((conv) =>
+                      renderConversationItem(conv),
+                    )}
+                  </CommandGroup>
+                )}
+                {conversations.length === 0 && (
+                  <CommandEmpty>No conversations yet.</CommandEmpty>
+                )}
+              </>
+            ) : null}
+          </>
+        )}
+      </CommandList>
 
-        <div className="border-t bg-muted/30 px-4 py-3">
-          <div className="flex items-center justify-center gap-6 flex-wrap text-xs">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Cmd
-                </kbd>
-                <span className="text-muted-foreground/40">/</span>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Ctrl
-                </kbd>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  K
-                </kbd>
-              </div>
-              <span className="text-muted-foreground/70">Search</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Opt
-                </kbd>
-                <span className="text-muted-foreground/40">/</span>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Alt
-                </kbd>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  N
-                </kbd>
-              </div>
-              <span className="text-muted-foreground/70">New</span>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="border-t bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-center gap-6 flex-wrap text-xs">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                D
+                Cmd
               </kbd>
-              <span className="text-muted-foreground/70">Delete</span>
+              <span className="text-muted-foreground/40">/</span>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                Ctrl
+              </kbd>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                K
+              </kbd>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Cmd
-                </kbd>
-                <span className="text-muted-foreground/40">/</span>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  Ctrl
-                </kbd>
-                <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                  B
-                </kbd>
-              </div>
-              <span className="text-muted-foreground/70">Sidebar</span>
+            <span className="text-muted-foreground/70">Search</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                Opt
+              </kbd>
+              <span className="text-muted-foreground/40">/</span>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                Alt
+              </kbd>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                N
+              </kbd>
             </div>
+            <span className="text-muted-foreground/70">New</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+              D
+            </kbd>
+            <span className="text-muted-foreground/70">Delete</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                Cmd
+              </kbd>
+              <span className="text-muted-foreground/40">/</span>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                Ctrl
+              </kbd>
+              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
+                B
+              </kbd>
+            </div>
+            <span className="text-muted-foreground/70">Sidebar</span>
           </div>
         </div>
-      </CommandDialog>
-
-      <AlertDialog
-        open={conversationToDelete !== null}
-        onOpenChange={(open) => !open && setConversationToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This conversation will be permanently deleted. This action cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConversation}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      </div>
+    </CommandDialog>
   );
 }
