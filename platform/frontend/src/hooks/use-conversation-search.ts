@@ -2,16 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePlatform } from "@/hooks/use-platform";
 
 export function useConversationSearch() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const { isMac } = usePlatform();
 
   useEffect(() => {
     const handleOpenPalette = () => setIsOpen(true);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const isModKey = isMac ? event.metaKey : event.ctrlKey;
 
       // Cmd/Ctrl+K should work even when focused on input elements
@@ -26,9 +27,11 @@ export function useConversationSearch() {
       }
 
       // Alt + N: New Chat (avoids Cmd/Ctrl+N New Window conflict)
-      if (event.altKey && event.key === "n") {
+      // Use event.code because on macOS, Option+N is a dead key (˜) so event.key is "Dead"
+      if (event.altKey && event.code === "KeyN") {
         event.preventDefault();
         event.stopPropagation();
+        setIsOpen(false);
         router.push("/chat");
       }
     };
@@ -40,7 +43,7 @@ export function useConversationSearch() {
       window.removeEventListener("open-conversation-search", handleOpenPalette);
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [router]);
+  }, [router, isMac]);
 
   return {
     isOpen,

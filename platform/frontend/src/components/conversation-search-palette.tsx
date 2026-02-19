@@ -17,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -27,6 +27,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { usePlatform } from "@/hooks/use-platform";
 import { useIsAuthenticated } from "@/lib/auth.hook";
 import { useConversations, useDeleteConversation } from "@/lib/chat.query";
 import { getConversationDisplayTitle } from "@/lib/chat-utils";
@@ -82,6 +83,80 @@ function groupConversationsByDate<T extends { updatedAt: string | Date }>(
   return { today, yesterday, previous7Days, older };
 }
 
+// Product navigation items matching sidebar names
+const navigationItems = [
+  {
+    icon: Bot,
+    label: "Agents",
+    value: "agents",
+    keywords: "agent bot ai",
+    href: "/agents",
+  },
+  {
+    icon: Zap,
+    label: "Agent Triggers",
+    value: "agent-triggers",
+    keywords: "triggers automation webhooks ms teams",
+    href: "/agent-triggers/ms-teams",
+  },
+  {
+    icon: Shield,
+    label: "MCP Gateways",
+    value: "mcp-gateways",
+    keywords: "gateways security mcp",
+    href: "/mcp-gateways",
+  },
+  {
+    icon: Network,
+    label: "LLM Proxies",
+    value: "llm-proxies",
+    keywords: "proxies llm network",
+    href: "/llm-proxies",
+  },
+  {
+    icon: MessagesSquare,
+    label: "Logs",
+    value: "logs",
+    keywords: "logs llm proxy requests",
+    href: "/logs/llm-proxy",
+  },
+  {
+    icon: Wrench,
+    label: "Tool Policies",
+    value: "tool-policies",
+    keywords: "tools policies permissions",
+    href: "/tools",
+  },
+  {
+    icon: Router,
+    label: "MCP Registry",
+    value: "mcp-registry",
+    keywords: "mcp catalog registry servers",
+    href: "/mcp-catalog/registry",
+  },
+  {
+    icon: Home,
+    label: "Cost & Limits",
+    value: "cost-limits",
+    keywords: "cost dashboard limits budget",
+    href: "/cost",
+  },
+  {
+    icon: Cable,
+    label: "Connect",
+    value: "connect",
+    keywords: "connect integration api",
+    href: "/connection",
+  },
+  {
+    icon: Settings,
+    label: "Settings",
+    value: "settings",
+    keywords: "settings configuration preferences",
+    href: "/settings",
+  },
+];
+
 interface ConversationSearchPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,7 +173,7 @@ export function ConversationSearchPalette({
     null,
   );
   const isAuthenticated = useIsAuthenticated();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { modKey, altKey } = usePlatform();
 
   const deleteMutation = useDeleteConversation();
 
@@ -127,18 +202,21 @@ export function ConversationSearchPalette({
     return groupConversationsByDate(conversations);
   }, [conversations, debouncedSearch]);
 
+  // Reset state on every open/close transition.
+  // Clearing on open handles stale chars from macOS dead keys (e.g. Option+N inserts ˜
+  // via a composition event AFTER the dialog closes, bypassing the close cleanup).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reacting to open changes to reset all dialog state
   useEffect(() => {
-    if (!open) {
-      setSearchQuery("");
-      setSelectedValue("");
-      setIsPendingDeletion(null);
-    }
+    setSearchQuery("");
+    setSelectedValue("");
+    setIsPendingDeletion(null);
   }, [open]);
 
   // Reset pending deletion when selection or search query changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reacting to selectedValue/searchQuery changes to clear stale deletion state
   useEffect(() => {
     setIsPendingDeletion(null);
-  }, []);
+  }, [selectedValue, searchQuery]);
 
   const handleSelectConversation = (conversationId: string) => {
     router.push(`/chat?conversation=${conversationId}`);
@@ -152,10 +230,21 @@ export function ConversationSearchPalette({
 
   const handleDeleteConversation = useCallback(
     (conversationId: string) => {
+      // Find the next conversation to select after deletion
+      const currentIndex = conversations.findIndex(
+        (c) => c.id === conversationId,
+      );
+      if (currentIndex !== -1) {
+        const nextConv =
+          conversations[currentIndex - 1] ??
+          conversations[currentIndex + 1] ??
+          null;
+        setSelectedValue(nextConv ? `conv-${nextConv.id}` : "");
+      }
       deleteMutation.mutate(conversationId);
       setIsPendingDeletion(null);
     },
-    [deleteMutation],
+    [deleteMutation, conversations],
   );
 
   // Keyboard shortcuts for search palette
@@ -163,7 +252,12 @@ export function ConversationSearchPalette({
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 'd' for delete - intercept before input when conversation is selected
+      // In cmdk, the input always retains focus even during arrow-key navigation.
+      // Only intercept 'd' when the search input is empty (browse mode).
+      // When the user is typing a search query, let 'd' pass through normally.
+      if (searchQuery) return;
+
+      // 'd' for delete when conversation is selected
       if (e.key === "d" && selectedValue?.startsWith("conv-")) {
         e.preventDefault();
         e.stopPropagation();
@@ -177,11 +271,16 @@ export function ConversationSearchPalette({
       }
     };
 
-    // Use capture phase to intercept before input element
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () =>
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [open, selectedValue, isPendingDeletion, handleDeleteConversation]);
+  }, [
+    open,
+    selectedValue,
+    searchQuery,
+    isPendingDeletion,
+    handleDeleteConversation,
+  ]);
 
   /** Generates a contextual preview snippet with search term context */
   const getPreviewText = (
@@ -295,87 +394,6 @@ export function ConversationSearchPalette({
     );
   };
 
-  // Product navigation items matching sidebar names
-  const navigationItems = [
-    {
-      icon: MessageCircle,
-      label: "New Chat",
-      value: "new-chat-nav",
-      keywords: "chat conversation",
-      href: "/chat",
-    },
-    {
-      icon: Bot,
-      label: "Agents",
-      value: "agents",
-      keywords: "agent bot ai",
-      href: "/agents",
-    },
-    {
-      icon: Zap,
-      label: "Agent Triggers",
-      value: "agent-triggers",
-      keywords: "triggers automation webhooks ms teams",
-      href: "/agent-triggers/ms-teams",
-    },
-    {
-      icon: Shield,
-      label: "MCP Gateways",
-      value: "mcp-gateways",
-      keywords: "gateways security mcp",
-      href: "/mcp-gateways",
-    },
-    {
-      icon: Network,
-      label: "LLM Proxies",
-      value: "llm-proxies",
-      keywords: "proxies llm network",
-      href: "/llm-proxies",
-    },
-    {
-      icon: MessagesSquare,
-      label: "Logs",
-      value: "logs",
-      keywords: "logs llm proxy requests",
-      href: "/logs/llm-proxy",
-    },
-    {
-      icon: Wrench,
-      label: "Tool Policies",
-      value: "tool-policies",
-      keywords: "tools policies permissions",
-      href: "/tools",
-    },
-    {
-      icon: Router,
-      label: "MCP Registry",
-      value: "mcp-registry",
-      keywords: "mcp catalog registry servers",
-      href: "/mcp-catalog/registry",
-    },
-    {
-      icon: Home,
-      label: "Cost & Limits",
-      value: "cost-limits",
-      keywords: "cost dashboard limits budget",
-      href: "/cost",
-    },
-    {
-      icon: Cable,
-      label: "Connect",
-      value: "connect",
-      keywords: "connect integration api",
-      href: "/connection",
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      value: "settings",
-      keywords: "settings configuration preferences",
-      href: "/settings",
-    },
-  ];
-
   return (
     <CommandDialog
       open={open}
@@ -388,7 +406,6 @@ export function ConversationSearchPalette({
       onValueChange={setSelectedValue}
     >
       <CommandInput
-        ref={inputRef}
         placeholder="Search or navigate..."
         value={searchQuery}
         onValueChange={setSearchQuery}
@@ -513,11 +530,7 @@ export function ConversationSearchPalette({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Cmd
-              </kbd>
-              <span className="text-muted-foreground/40">/</span>
-              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Ctrl
+                {modKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                 K
@@ -528,32 +541,24 @@ export function ConversationSearchPalette({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Opt
-              </kbd>
-              <span className="text-muted-foreground/40">/</span>
-              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Alt
+                {altKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                 N
               </kbd>
             </div>
-            <span className="text-muted-foreground/70">New</span>
+            <span className="text-muted-foreground/70">New Chat</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
               D
             </kbd>
-            <span className="text-muted-foreground/70">Delete</span>
+            <span className="text-muted-foreground/70">Delete Chat</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Cmd
-              </kbd>
-              <span className="text-muted-foreground/40">/</span>
-              <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
-                Ctrl
+                {modKey}
               </kbd>
               <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-muted px-1.5 font-sans text-[10px] font-medium text-muted-foreground border border-border/50">
                 B
