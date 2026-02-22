@@ -41,6 +41,8 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
             mistralEnabled: z.boolean(),
             /** Perplexity mode - when enabled, Perplexity AI provider is available */
             perplexityEnabled: z.boolean(),
+            /** Groq mode - when enabled, Groq provider is available */
+            groqEnabled: z.boolean(),
             /** Global tool policy - permissive bypasses policy checks, restrictive enforces them */
             globalToolPolicy: z.enum(["permissive", "restrictive"]),
             /** Browser streaming - enables live browser automation via Playwright MCP */
@@ -86,6 +88,7 @@ const featuresRoutes: FastifyPluginAsyncZod = async (fastify) => {
         ollamaEnabled: config.llm.ollama.enabled,
         mistralEnabled: true, // Mistral is always enabled (has default base URL)
         perplexityEnabled: true, // Perplexity is always enabled (has default base URL)
+        groqEnabled: true, // Groq is always enabled (has default base URL)
         globalToolPolicy,
         incomingEmail: getEmailProviderInfo(),
         knowledgeGraph: getKnowledgeGraphProviderInfo(),
