@@ -572,7 +572,7 @@ const proxiedModelCreators: Record<SupportedChatProvider, ProxiedModelCreator> =
       if (!apiKey) {
         throw new ApiError(
           400,
-          "Groq API key is required. Please configure GROQ_API_KEY.",
+          "Groq API key is required. Please configure ARCHESTRA_CHAT_GROQ_API_KEY.",
         );
       }
       const client = createGroq({
