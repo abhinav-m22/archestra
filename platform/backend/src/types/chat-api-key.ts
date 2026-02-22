@@ -70,6 +70,7 @@ export const UpdateChatApiKeySchema = createUpdateSchema(
   .extend({
     provider: SupportedChatProviderSchema.optional(),
     scope: ChatApiKeyScopeSchema.optional(),
+    isPrimary: z.boolean().optional(),
   });
 
 export type ChatApiKey = z.infer<typeof SelectChatApiKeySchema>;
