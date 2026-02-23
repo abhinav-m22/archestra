@@ -215,7 +215,7 @@ const groqConfig: TokenCostLimitTestConfig = {
 
   // WireMock returns: prompt_tokens: 100, completion_tokens: 20
   // Cost = (100 * 20000 + 20 * 30000) / 1,000,000 = $2.60
-  tokenPrice: {
+  customPricing: {
     provider: "groq",
     model: "test-groq-cost-limit",
     pricePerMillionInput: "20000.00",
