@@ -13,13 +13,12 @@ import {
 import { ARCHESTRA_TOKEN_PREFIX } from "@shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import config from "@/config";
-import getDefaultPricing from "@/default-model-prices";
 import logger from "@/logging";
 import {
   AgentTeamModel,
   InteractionModel,
   LimitValidationService,
-  TokenPriceModel,
+  ModelModel,
   UserModel,
 } from "@/models";
 import { metrics } from "@/observability";
@@ -273,21 +272,23 @@ export async function handleLLMProxy<
       `[${providerName}Proxy] Limit check passed`,
     );
 
-    // Persist tools declared by client
-    const tools = requestAdapter.getTools();
-    if (tools.length > 0) {
-      logger.debug(
-        { toolCount: tools.length },
-        `[${providerName}Proxy] Processing tools from request`,
-      );
-      await utils.tools.persistTools(
-        tools.map((t) => ({
-          toolName: t.name,
-          toolParameters: t.inputSchema,
-          toolDescription: t.description,
-        })),
-        resolvedAgentId,
-      );
+    // Persist tools declared by client (only for llm_proxy agents)
+    if (resolvedAgent.agentType === "llm_proxy") {
+      const tools = requestAdapter.getTools();
+      if (tools.length > 0) {
+        logger.debug(
+          { toolCount: tools.length },
+          `[${providerName}Proxy] Processing tools from request`,
+        );
+        await utils.tools.persistTools(
+          tools.map((t) => ({
+            toolName: t.name,
+            toolParameters: t.inputSchema,
+            toolDescription: t.description,
+          })),
+          resolvedAgentId,
+        );
+      }
     }
 
     // Cost optimization - potentially switch to cheaper model
@@ -321,19 +322,11 @@ export async function handleLLMProxy<
 
     const actualModel = requestAdapter.getModel();
 
-    // Ensure token prices exist
-    const baselinePricing = getDefaultPricing(baselineModel);
-    await TokenPriceModel.createIfNotExists(baselineModel, {
-      provider: providerName,
-      ...baselinePricing,
-    });
+    // Ensure model entries exist for cost tracking
+    await ModelModel.ensureModelExists(baselineModel, providerName);
 
     if (actualModel !== baselineModel) {
-      const optimizedPricing = getDefaultPricing(actualModel);
-      await TokenPriceModel.createIfNotExists(actualModel, {
-        provider: providerName,
-        ...optimizedPricing,
-      });
+      await ModelModel.ensureModelExists(actualModel, providerName);
     }
 
     // Prepare SSE headers for lazy commitment if streaming.
@@ -496,7 +489,12 @@ export async function handleLLMProxy<
     const finalRequest = requestAdapter.toProviderRequest();
 
     // Extract enabled tool names for filtering in evaluatePolicies
-    const enabledToolNames = new Set(tools.map((t) => t.name).filter(Boolean));
+    const enabledToolNames = new Set(
+      requestAdapter
+        .getTools()
+        .map((t) => t.name)
+        .filter(Boolean),
+    );
 
     // Convert headers to Record<string, string> for policy evaluation context
     const headersRecord: Record<string, string> = {};
@@ -679,6 +677,7 @@ async function handleStreaming<
             actualModel,
             state.usage.inputTokens,
             state.usage.outputTokens,
+            providerName,
           );
           if (cost !== undefined) {
             llmSpan.setAttribute("archestra.cost", cost);
@@ -826,11 +825,13 @@ async function handleStreaming<
         baselineModel,
         usage.inputTokens,
         usage.outputTokens,
+        providerName,
       );
       const actualCost = await utils.costOptimization.calculateCost(
         actualModel,
         usage.inputTokens,
         usage.outputTokens,
+        providerName,
       );
 
       withSessionContext(sessionId, () =>
@@ -962,6 +963,7 @@ async function handleNonStreaming<
         actualModel,
         usage.inputTokens,
         usage.outputTokens,
+        providerName,
       );
       if (cost !== undefined) {
         llmSpan.setAttribute("archestra.cost", cost);
@@ -1039,11 +1041,13 @@ async function handleNonStreaming<
         baselineModel,
         usage.inputTokens,
         usage.outputTokens,
+        providerName,
       );
       const actualCost = await utils.costOptimization.calculateCost(
         actualModel,
         usage.inputTokens,
         usage.outputTokens,
+        providerName,
       );
 
       withSessionContext(sessionId, () =>
@@ -1103,11 +1107,13 @@ async function handleNonStreaming<
     baselineModel,
     usage.inputTokens,
     usage.outputTokens,
+    providerName,
   );
   const actualCost = await utils.costOptimization.calculateCost(
     actualModel,
     usage.inputTokens,
     usage.outputTokens,
+    providerName,
   );
 
   withSessionContext(sessionId, () =>

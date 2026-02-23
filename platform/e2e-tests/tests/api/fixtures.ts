@@ -39,6 +39,7 @@ export interface TestFixtures {
   createTeam: typeof createTeam;
   deleteTeam: typeof deleteTeam;
   waitForAgentTool: typeof waitForAgentTool;
+  waitForProxyTool: typeof waitForProxyTool;
   getTeamByName: typeof getTeamByName;
   addTeamMember: typeof addTeamMember;
   removeTeamMember: typeof removeTeamMember;
@@ -49,9 +50,8 @@ export interface TestFixtures {
   createLimit: typeof createLimit;
   deleteLimit: typeof deleteLimit;
   getLimits: typeof getLimits;
-  createTokenPrice: typeof createTokenPrice;
-  deleteTokenPrice: typeof deleteTokenPrice;
-  getTokenPrices: typeof getTokenPrices;
+  getModels: typeof getModels;
+  updateModelPricing: typeof updateModelPricing;
   getOrganization: typeof getOrganization;
   updateOrganization: typeof updateOrganization;
   getInteractions: typeof getInteractions;
@@ -494,6 +494,52 @@ const waitForAgentTool = async (
 };
 
 /**
+ * Wait for a proxy-discovered tool to appear in the tools list.
+ * Queries GET /api/tools/with-assignments filtered by name and llm-proxy origin.
+ */
+const waitForProxyTool = async (
+  request: APIRequestContext,
+  toolName: string,
+  options?: {
+    maxAttempts?: number;
+    delayMs?: number;
+  },
+): Promise<{
+  id: string;
+  name: string;
+  description: string | null;
+  catalogId: string | null;
+}> => {
+  const maxAttempts = options?.maxAttempts ?? 20;
+  const delayMs = options?.delayMs ?? 1000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await makeApiRequest({
+      request,
+      method: "get",
+      urlSuffix: `/api/tools/with-assignments?search=${encodeURIComponent(toolName)}&origin=llm-proxy`,
+      ignoreStatusCheck: true,
+    });
+
+    if (response.ok()) {
+      const result = await response.json();
+      const found = result.data.find(
+        (t: { name: string }) => t.name === toolName,
+      );
+      if (found) return found;
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error(
+    `Proxy tool '${toolName}' not found after ${maxAttempts} attempts`,
+  );
+};
+
+/**
  * Get a team by name (includes members)
  */
 export const getTeamByName = async (
@@ -694,50 +740,34 @@ const getLimits = async (
 };
 
 /**
- * Create a token price for a model
+ * Get all models with their API keys and capabilities
  * (authnz is handled by the authenticated session)
  */
-const createTokenPrice = async (
+const getModels = async (request: APIRequestContext) =>
+  makeApiRequest({
+    request,
+    method: "get",
+    urlSuffix: "/api/models",
+  });
+
+/**
+ * Update custom pricing for a model by its internal UUID.
+ * Set prices to null to reset to default pricing.
+ * (authnz is handled by the authenticated session)
+ */
+const updateModelPricing = async (
   request: APIRequestContext,
-  tokenPrice: {
-    provider: SupportedProvider;
-    model: string;
-    pricePerMillionInput: string;
-    pricePerMillionOutput: string;
+  modelId: string,
+  pricing: {
+    customPricePerMillionInput: string | null;
+    customPricePerMillionOutput: string | null;
   },
 ) =>
   makeApiRequest({
     request,
-    method: "post",
-    urlSuffix: "/api/token-prices",
-    data: tokenPrice,
-    ignoreStatusCheck: true, // May return 409 if already exists
-  });
-
-/**
- * Delete a token price by ID
- * (authnz is handled by the authenticated session)
- */
-const deleteTokenPrice = async (
-  request: APIRequestContext,
-  tokenPriceId: string,
-) =>
-  makeApiRequest({
-    request,
-    method: "delete",
-    urlSuffix: `/api/token-prices/${tokenPriceId}`,
-    ignoreStatusCheck: true, // May already be deleted
-  });
-
-/**
- * Get all token prices
- * (authnz is handled by the authenticated session)
- */
-const getTokenPrices = async (request: APIRequestContext) =>
-  makeApiRequest({
-    request,
-    method: "get",
-    urlSuffix: "/api/token-prices",
+    method: "patch",
+    urlSuffix: `/api/models/${modelId}/pricing`,
+    data: pricing,
   });
 
 /**
@@ -930,6 +960,9 @@ export const test = base.extend<TestFixtures>({
   waitForAgentTool: async ({}, use) => {
     await use(waitForAgentTool);
   },
+  waitForProxyTool: async ({}, use) => {
+    await use(waitForProxyTool);
+  },
   getTeamByName: async ({}, use) => {
     await use(getTeamByName);
   },
@@ -960,14 +993,11 @@ export const test = base.extend<TestFixtures>({
   getLimits: async ({}, use) => {
     await use(getLimits);
   },
-  createTokenPrice: async ({}, use) => {
-    await use(createTokenPrice);
+  getModels: async ({}, use) => {
+    await use(getModels);
   },
-  deleteTokenPrice: async ({}, use) => {
-    await use(deleteTokenPrice);
-  },
-  getTokenPrices: async ({}, use) => {
-    await use(getTokenPrices);
+  updateModelPricing: async ({}, use) => {
+    await use(updateModelPricing);
   },
   getOrganization: async ({}, use) => {
     await use(getOrganization);

@@ -644,10 +644,15 @@ for (const config of testConfigs) {
       createToolInvocationPolicy,
       deleteToolInvocationPolicy,
       makeApiRequest,
-      waitForAgentTool,
+      waitForProxyTool,
     }) => {
       const wiremockStub = `${config.providerName.toLowerCase()}-blocks-tool-untrusted-data`;
       const uniqueSuffix = crypto.randomUUID().slice(0, 8);
+      const toolName = `e2e_read_file_${config.providerName.toLowerCase()}`;
+      const readFileTool: ToolDefinition = {
+        ...READ_FILE_TOOL,
+        name: toolName,
+      };
 
       // 1. Create a test agent with considerContextUntrusted=true
       // This marks the entire context as untrusted, which is required for tool invocation
@@ -661,6 +666,7 @@ for (const config of testConfigs) {
           name: `${config.providerName} Test Agent ${uniqueSuffix}`,
           teams: [],
           considerContextUntrusted: true,
+          agentType: "llm_proxy",
         },
       });
       const agent = await createResponse.json();
@@ -673,7 +679,7 @@ for (const config of testConfigs) {
         urlSuffix: config.endpoint(agentId),
         headers: config.headers(wiremockStub),
         data: config.buildRequest("Read the file at /etc/passwd", [
-          READ_FILE_TOOL,
+          readFileTool,
         ]),
       });
 
@@ -684,13 +690,9 @@ for (const config of testConfigs) {
         );
       }
 
-      // 3. Get the tool ID from the agent-tool relationship
-      const readFileAgentTool = await waitForAgentTool(
-        request,
-        agentId,
-        "read_file",
-      );
-      const toolId = readFileAgentTool.tool.id;
+      // 3. Get the tool ID from the shared proxy tool
+      const proxyTool = await waitForProxyTool(request, toolName);
+      const toolId = proxyTool.id;
 
       // 4. Create a trusted data policy
       const trustedDataPolicyResponse = await createTrustedDataPolicy(request, {
@@ -739,7 +741,7 @@ for (const config of testConfigs) {
         headers: config.headers(wiremockStub),
         data: config.buildRequest(
           "UNTRUSTED_DATA: This is untrusted content from an external source",
-          [READ_FILE_TOOL],
+          [readFileTool],
         ),
       });
 
@@ -773,15 +775,15 @@ for (const config of testConfigs) {
 
     test("allows Archestra MCP server tools in untrusted context", async ({
       request,
-      createAgent,
+      createLlmProxy,
       deleteAgent,
       makeApiRequest,
     }) => {
       const wiremockStub = `${config.providerName.toLowerCase()}-allows-archestra-untrusted-context`;
 
-      // 1. Create a test agent with unique name to avoid conflicts in parallel runs
+      // 1. Create a test LLM proxy with unique name to avoid conflicts in parallel runs
       const uniqueSuffix = crypto.randomUUID().slice(0, 8);
-      const createResponse = await createAgent(
+      const createResponse = await createLlmProxy(
         request,
         `${config.providerName} Archestra Test Agent ${uniqueSuffix}`,
       );
@@ -839,15 +841,15 @@ for (const config of testConfigs) {
 
     test("allows regular tool call after Archestra MCP server tool call", async ({
       request,
-      createAgent,
+      createLlmProxy,
       deleteAgent,
       makeApiRequest,
     }) => {
       const wiremockStub = `${config.providerName.toLowerCase()}-allows-regular-after-archestra`;
 
-      // 1. Create a test agent with unique name to avoid conflicts in parallel runs
+      // 1. Create a test LLM proxy with unique name to avoid conflicts in parallel runs
       const uniqueSuffix = crypto.randomUUID().slice(0, 8);
-      const createResponse = await createAgent(
+      const createResponse = await createLlmProxy(
         request,
         `${config.providerName} Archestra Sequence Test Agent ${uniqueSuffix}`,
       );
