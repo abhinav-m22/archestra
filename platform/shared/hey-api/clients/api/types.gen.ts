@@ -8015,9 +8015,6 @@ export type GetAgentsResponses = {
             promptHistory: string | number | boolean | null | {
                 [key: string]: unknown;
             } | Array<unknown> | null;
-            allowedChatops: string | number | boolean | null | {
-                [key: string]: unknown;
-            } | Array<unknown> | null;
             description: string | null;
             incomingEmailEnabled: boolean;
             incomingEmailSecurityMode: 'private' | 'internal' | 'public';
@@ -8090,9 +8087,6 @@ export type CreateAgentData = {
         agentType?: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
         systemPrompt?: string | null;
         userPrompt?: string | null;
-        allowedChatops?: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
         description?: string | null;
         incomingEmailEnabled?: boolean;
         incomingEmailSecurityMode?: 'private' | 'internal' | 'public';
@@ -8188,9 +8182,6 @@ export type CreateAgentResponses = {
         userPrompt: string | null;
         promptVersion: number | null;
         promptHistory: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
         description: string | null;
@@ -8339,9 +8330,6 @@ export type GetAllAgentsResponses = {
         promptHistory: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
         description: string | null;
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
@@ -8479,9 +8467,6 @@ export type GetDefaultMcpGatewayResponses = {
         promptHistory: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
         description: string | null;
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
@@ -8617,9 +8602,6 @@ export type GetDefaultLlmProxyResponses = {
         userPrompt: string | null;
         promptVersion: number | null;
         promptHistory: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
         description: string | null;
@@ -8840,9 +8822,6 @@ export type GetAgentResponses = {
         promptHistory: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
         description: string | null;
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
@@ -8906,9 +8885,6 @@ export type UpdateAgentData = {
         agentType?: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
         systemPrompt?: string | null;
         userPrompt?: string | null;
-        allowedChatops?: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
         description?: string | null;
         incomingEmailEnabled?: boolean;
         incomingEmailSecurityMode?: 'private' | 'internal' | 'public';
@@ -9006,9 +8982,6 @@ export type UpdateAgentResponses = {
         userPrompt: string | null;
         promptVersion: number | null;
         promptHistory: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
         description: string | null;
@@ -9149,9 +9122,6 @@ export type GetAgentVersionsResponses = {
             userPrompt: string | null;
             promptVersion: number | null;
             promptHistory: string | number | boolean | null | {
-                [key: string]: unknown;
-            } | Array<unknown> | null;
-            allowedChatops: string | number | boolean | null | {
                 [key: string]: unknown;
             } | Array<unknown> | null;
             description: string | null;
@@ -9303,9 +9273,6 @@ export type RollbackAgentResponses = {
         userPrompt: string | null;
         promptVersion: number | null;
         promptHistory: string | number | boolean | null | {
-            [key: string]: unknown;
-        } | Array<unknown> | null;
-        allowedChatops: string | number | boolean | null | {
             [key: string]: unknown;
         } | Array<unknown> | null;
         description: string | null;
