@@ -20268,6 +20268,10 @@ export type GetInternalMcpCatalogResponses = {
         } | null;
         createdAt: string;
         updatedAt: string;
+        labels: Array<{
+            key: string;
+            value: string;
+        }>;
     }>;
 };
 
@@ -20352,6 +20356,10 @@ export type CreateInternalMcpCatalogItemData = {
             streamable_http_url?: string;
             streamable_http_port?: number;
         } | null;
+        labels?: Array<{
+            key: string;
+            value: string;
+        }>;
         oauthClientSecretVaultPath?: string;
         oauthClientSecretVaultKey?: string;
         localConfigVaultPath?: string;
@@ -20505,6 +20513,10 @@ export type CreateInternalMcpCatalogItemResponses = {
         } | null;
         createdAt: string;
         updatedAt: string;
+        labels: Array<{
+            key: string;
+            value: string;
+        }>;
     };
 };
 
@@ -20741,6 +20753,10 @@ export type GetInternalMcpCatalogItemResponses = {
         } | null;
         createdAt: string;
         updatedAt: string;
+        labels: Array<{
+            key: string;
+            value: string;
+        }>;
     };
 };
 
@@ -20824,6 +20840,10 @@ export type UpdateInternalMcpCatalogItemData = {
             streamable_http_url?: string;
             streamable_http_port?: number;
         } | null;
+        labels?: Array<{
+            key: string;
+            value: string;
+        }>;
         oauthClientSecretVaultPath?: string;
         oauthClientSecretVaultKey?: string;
         localConfigVaultPath?: string;
@@ -20979,6 +20999,10 @@ export type UpdateInternalMcpCatalogItemResponses = {
         } | null;
         createdAt: string;
         updatedAt: string;
+        labels: Array<{
+            key: string;
+            value: string;
+        }>;
     };
 };
 
@@ -21391,6 +21415,161 @@ export type ResetDeploymentYamlResponses = {
 };
 
 export type ResetDeploymentYamlResponse = ResetDeploymentYamlResponses[keyof ResetDeploymentYamlResponses];
+
+export type GetInternalMcpCatalogLabelKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/internal_mcp_catalog/labels/keys';
+};
+
+export type GetInternalMcpCatalogLabelKeysErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type GetInternalMcpCatalogLabelKeysError = GetInternalMcpCatalogLabelKeysErrors[keyof GetInternalMcpCatalogLabelKeysErrors];
+
+export type GetInternalMcpCatalogLabelKeysResponses = {
+    /**
+     * Default Response
+     */
+    200: Array<string>;
+};
+
+export type GetInternalMcpCatalogLabelKeysResponse = GetInternalMcpCatalogLabelKeysResponses[keyof GetInternalMcpCatalogLabelKeysResponses];
+
+export type GetInternalMcpCatalogLabelValuesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter values by label key
+         */
+        key?: string;
+    };
+    url: '/api/internal_mcp_catalog/labels/values';
+};
+
+export type GetInternalMcpCatalogLabelValuesErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type GetInternalMcpCatalogLabelValuesError = GetInternalMcpCatalogLabelValuesErrors[keyof GetInternalMcpCatalogLabelValuesErrors];
+
+export type GetInternalMcpCatalogLabelValuesResponses = {
+    /**
+     * Default Response
+     */
+    200: Array<string>;
+};
+
+export type GetInternalMcpCatalogLabelValuesResponse = GetInternalMcpCatalogLabelValuesResponses[keyof GetInternalMcpCatalogLabelValuesResponses];
 
 export type CheckInvitationData = {
     body?: never;
