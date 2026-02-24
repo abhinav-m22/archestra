@@ -43,7 +43,6 @@ import {
   TeamModel,
 } from "@/models";
 import ApiKeyModelModel from "@/models/api-key-model";
-import { getExternalAgentId } from "@/routes/proxy/utils/headers/external-agent-id";
 import { startActiveChatSpan } from "@/routes/proxy/utils/tracing";
 import { getSecretValueForLlmProviderApiKey } from "@/secrets-manager";
 import {
@@ -241,7 +240,17 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         throw new ApiError(404, "Conversation not found");
       }
 
-      const externalAgentId = getExternalAgentId(request.headers);
+      // Check if the agent was deleted
+      if (!conversation.agentId || !conversation.agent) {
+        throw new ApiError(
+          400,
+          "The agent associated with this conversation has been deleted",
+        );
+      }
+
+      const { agentId, agent } = conversation;
+
+      const externalAgentId = agentId;
 
       // Fetch enabled tool IDs and custom selection status in parallel
       const [enabledToolIds, hasCustomSelection] = await Promise.all([
@@ -253,8 +262,8 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       // Pass undefined if no custom selection (use all tools)
       // Pass the actual array (even if empty) if there is custom selection
       const mcpTools = await getChatMcpTools({
-        agentName: conversation.agent.name,
-        agentId: conversation.agentId,
+        agentName: agent.name,
+        agentId,
         userId: user.id,
         userIsAgentAdmin,
         enabledToolIds: hasCustomSelection ? enabledToolIds : undefined,
@@ -263,7 +272,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         // Pass conversationId as sessionId to group all chat requests (including delegated agents) together
         sessionId: conversation.id,
         // Pass agentId as initial delegation chain (will be extended by delegated agents)
-        delegationChain: conversation.agentId,
+        delegationChain: agentId,
         abortSignal: chatAbortController.signal,
         user: { id: user.id, email: user.email, name: user.name },
       });
@@ -274,11 +283,11 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       const userPromptParts: string[] = [];
 
       // Collect system and user prompts from the agent
-      if (conversation.agent.systemPrompt) {
-        systemPromptParts.push(conversation.agent.systemPrompt);
+      if (agent.systemPrompt) {
+        systemPromptParts.push(agent.systemPrompt);
       }
-      if (conversation.agent.userPrompt) {
-        userPromptParts.push(conversation.agent.userPrompt);
+      if (agent.userPrompt) {
+        userPromptParts.push(agent.userPrompt);
       }
 
       // Add instruction about tool approval denials
@@ -302,7 +311,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       logger.info(
         {
           conversationId,
-          agentId: conversation.agentId,
+          agentId,
           userId: user.id,
           orgId: organizationId,
           toolCount: Object.keys(mcpTools).length,
@@ -322,8 +331,8 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       // Wrap the entire chat turn in a parent span so LLM calls (via proxy)
       // and MCP tool executions appear as children of a single trace.
       return startActiveChatSpan({
-        agentName: conversation.agent.name,
-        agentId: conversation.agentId,
+        agentName: agent.name,
+        agentId,
         sessionId: conversationId,
         user: { id: user.id, email: user.email, name: user.name },
         callback: async () => {
@@ -333,13 +342,13 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           const { model } = await createLLMModelForAgent({
             organizationId,
             userId: user.id,
-            agentId: conversation.agentId,
+            agentId,
             model: conversation.selectedModel,
             provider,
             conversationId,
             externalAgentId,
             sessionId: conversationId,
-            agentLlmApiKeyId: conversation.agent.llmApiKeyId,
+            agentLlmApiKeyId: agent.llmApiKeyId,
           });
 
           // Strip images and large browser tool results from messages before sending to LLM
@@ -430,7 +439,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                           {
                             error,
                             conversationId,
-                            agentId: conversation.agentId,
+                            agentId,
                           },
                           "Chat stream error occurred",
                         );
@@ -826,7 +835,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         if (
           !currentConversation ||
-          body.chatApiKeyId !== currentConversation.agent.llmApiKeyId
+          body.chatApiKeyId !== currentConversation.agent?.llmApiKeyId
         ) {
           await validateChatApiKeyAccess(
             body.chatApiKeyId,
@@ -887,7 +896,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         organizationId,
       });
 
-      if (conversation && browserStreamFeature.isEnabled()) {
+      if (conversation?.agentId && browserStreamFeature.isEnabled()) {
         // Close browser tab for this conversation (best effort, don't fail if it errors)
         try {
           await browserStreamFeature.closeTab(conversation.agentId, id, {
@@ -974,6 +983,16 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         ? conversation.selectedProvider
         : detectProviderFromModel(conversation.selectedModel);
 
+      logger.debug(
+        {
+          conversationId: id,
+          selectedProvider: conversation.selectedProvider,
+          selectedModel: conversation.selectedModel,
+          resolvedProvider: provider,
+        },
+        "Title generation: resolved provider",
+      );
+
       // Resolve API key using the centralized function (handles all providers)
       const { apiKey, chatApiKeyId, baseUrl } = await resolveProviderApiKey({
         organizationId,
@@ -981,6 +1000,17 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         provider,
         conversationId: id,
       });
+
+      logger.debug(
+        {
+          conversationId: id,
+          provider,
+          hasApiKey: !!apiKey,
+          chatApiKeyId,
+          baseUrl,
+        },
+        "Title generation: resolved API key",
+      );
 
       if (isApiKeyRequired(provider, apiKey)) {
         throw new ApiError(
@@ -1000,6 +1030,10 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       });
 
       if (!generatedTitle) {
+        logger.warn(
+          { conversationId: id, provider },
+          "Title generation: returned null (generation failed)",
+        );
         // Return the conversation without title update on error
         return reply.send(conversation);
       }
@@ -1319,6 +1353,11 @@ export async function generateConversationTitle(
 
   const modelName = await resolveFastModelName(provider, chatApiKeyId);
 
+  logger.debug(
+    { provider, modelName, chatApiKeyId, hasApiKey: !!apiKey, baseUrl },
+    "Title generation: creating direct LLM model",
+  );
+
   // Create model for title generation (direct call, not through LLM Proxy)
   const model = createDirectLLMModel({
     provider,
@@ -1330,14 +1369,25 @@ export async function generateConversationTitle(
   const titlePrompt = buildTitlePrompt(firstUserMessage, firstAssistantMessage);
 
   try {
+    logger.debug(
+      { provider, modelName },
+      "Title generation: calling generateText",
+    );
     const result = await generateText({
       model,
       prompt: titlePrompt,
     });
 
+    logger.debug(
+      { provider, modelName, generatedTitle: result.text.trim() },
+      "Title generation: generateText succeeded",
+    );
     return result.text.trim();
   } catch (error) {
-    logger.error({ error, provider }, "Failed to generate conversation title");
+    logger.error(
+      { error, provider, modelName, baseUrl },
+      "Failed to generate conversation title",
+    );
     return null;
   }
 }
@@ -1544,14 +1594,27 @@ async function resolveFastModelName(
   chatApiKeyId: string | undefined,
 ): Promise<string> {
   if (!chatApiKeyId) {
-    return FAST_MODELS[provider];
+    const fallback = FAST_MODELS[provider];
+    logger.debug(
+      { provider, modelName: fallback },
+      "Title generation: no chatApiKeyId, using hardcoded fast model",
+    );
+    return fallback;
   }
 
   try {
     const fastestModel = await ApiKeyModelModel.getFastestModel(chatApiKeyId);
     if (fastestModel) {
+      logger.debug(
+        { provider, chatApiKeyId, modelId: fastestModel.modelId },
+        "Title generation: resolved fastest model from DB",
+      );
       return fastestModel.modelId;
     }
+    logger.debug(
+      { provider, chatApiKeyId },
+      "Title generation: no fastest model in DB, using hardcoded fallback",
+    );
   } catch (error) {
     logger.warn(
       { error, chatApiKeyId },

@@ -14771,7 +14771,7 @@ export type GetChatConversationsResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -14790,7 +14790,7 @@ export type GetChatConversationsResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     }>;
 };
@@ -14877,7 +14877,7 @@ export type CreateChatConversationResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -14896,7 +14896,7 @@ export type CreateChatConversationResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     };
 };
@@ -15058,7 +15058,7 @@ export type GetChatConversationResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -15077,7 +15077,7 @@ export type GetChatConversationResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     };
 };
@@ -15167,7 +15167,7 @@ export type UpdateChatConversationResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -15186,7 +15186,7 @@ export type UpdateChatConversationResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     };
 };
@@ -15357,7 +15357,7 @@ export type GenerateChatConversationTitleResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -15376,7 +15376,7 @@ export type GenerateChatConversationTitleResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     };
 };
@@ -15463,7 +15463,7 @@ export type UpdateChatMessageResponses = {
         id: string;
         userId: string;
         organizationId: string;
-        agentId: string;
+        agentId: string | null;
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
@@ -15482,7 +15482,7 @@ export type UpdateChatMessageResponses = {
             userPrompt: string | null;
             agentType: 'profile' | 'mcp_gateway' | 'llm_proxy' | 'agent';
             llmApiKeyId: string | null;
-        };
+        } | null;
         messages: Array<unknown>;
     };
 };
@@ -18473,7 +18473,7 @@ export type GetInteractionsResponses = {
     200: {
         data: Array<{
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18498,7 +18498,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18523,7 +18523,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18548,7 +18548,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18941,7 +18941,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18966,7 +18966,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -18991,7 +18991,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -19016,7 +19016,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -19064,7 +19064,7 @@ export type GetInteractionsResponses = {
             createdAt: string;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -19087,7 +19087,7 @@ export type GetInteractionsResponses = {
             createdAt: string;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -19112,7 +19112,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -19266,7 +19266,7 @@ export type GetInteractionSessionsResponses = {
             firstRequestTime: string;
             lastRequestTime: string;
             models: Array<string>;
-            profileId: string;
+            profileId: string | null;
             profileName: string | null;
             externalAgentIds: Array<string>;
             externalAgentIdLabels: Array<string | null>;
@@ -19519,7 +19519,7 @@ export type GetInteractionResponses = {
      */
     200: {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -19544,7 +19544,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -19569,7 +19569,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -19594,7 +19594,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -19987,7 +19987,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20012,7 +20012,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20037,7 +20037,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20062,7 +20062,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20110,7 +20110,7 @@ export type GetInteractionResponses = {
         createdAt: string;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20133,7 +20133,7 @@ export type GetInteractionResponses = {
         createdAt: string;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -20158,7 +20158,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
@@ -24455,7 +24455,7 @@ export type GetMcpToolCallsResponses = {
     200: {
         data: Array<{
             id: string;
-            agentId: string;
+            agentId: string | null;
             mcpServerName: string;
             method: string;
             /**
@@ -24561,7 +24561,7 @@ export type GetMcpToolCallResponses = {
      */
     200: {
         id: string;
-        agentId: string;
+        agentId: string | null;
         mcpServerName: string;
         method: string;
         /**
