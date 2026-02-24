@@ -14781,6 +14781,7 @@ export type GetChatConversationsResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
@@ -14887,6 +14888,7 @@ export type CreateChatConversationResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
@@ -15068,6 +15070,7 @@ export type GetChatConversationResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
@@ -15092,6 +15095,7 @@ export type UpdateChatConversationData = {
         chatApiKeyId?: string | null;
         agentId?: string;
         artifact?: string | null;
+        pinnedAt?: string | null;
     };
     path: {
         id: string;
@@ -15177,6 +15181,7 @@ export type UpdateChatConversationResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
@@ -15367,6 +15372,7 @@ export type GenerateChatConversationTitleResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
@@ -15473,6 +15479,7 @@ export type UpdateChatMessageResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
         agent: {
