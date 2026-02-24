@@ -19041,7 +19041,7 @@ export type GetInteractionsResponses = {
             externalAgentIdLabel?: string | null;
         } | {
             id: string;
-            profileId: string;
+            profileId: string | null;
             externalAgentId: string | null;
             executionId: string | null;
             userId: string | null;
@@ -20087,7 +20087,7 @@ export type GetInteractionResponses = {
         externalAgentIdLabel?: string | null;
     } | {
         id: string;
-        profileId: string;
+        profileId: string | null;
         externalAgentId: string | null;
         executionId: string | null;
         userId: string | null;
