@@ -14384,7 +14384,7 @@ export type GetChatApiKeysResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -14409,7 +14409,7 @@ export type GetChatApiKeysResponse = GetChatApiKeysResponses[keyof GetChatApiKey
 export type CreateChatApiKeyData = {
     body: {
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         apiKey?: string;
         baseUrl?: string | null;
         scope?: 'personal' | 'team' | 'org_wide';
@@ -14490,7 +14490,7 @@ export type CreateChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -14509,7 +14509,7 @@ export type GetAvailableChatApiKeysData = {
     body?: never;
     path?: never;
     query?: {
-        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         includeKeyId?: string;
     };
     url: '/api/chat-api-keys/available';
@@ -14582,7 +14582,7 @@ export type GetAvailableChatApiKeysResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -14759,7 +14759,7 @@ export type GetChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -14866,7 +14866,7 @@ export type UpdateChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -14885,7 +14885,7 @@ export type GetChatModelsData = {
     body?: never;
     path?: never;
     query?: {
-        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
     };
     url: '/api/chat/models';
 };
@@ -14956,7 +14956,7 @@ export type GetChatModelsResponses = {
     200: Array<{
         id: string;
         displayName: string;
-        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         createdAt?: string;
         capabilities?: {
             contextLength: number | null;
@@ -15123,7 +15123,7 @@ export type GetModelsWithApiKeysResponses = {
     200: Array<{
         id: string;
         externalId: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         modelId: string;
         description: string | null;
         contextLength: number | null;
@@ -15239,7 +15239,7 @@ export type UpdateModelPricingResponses = {
     200: {
         id: string;
         externalId: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         modelId: string;
         description: string | null;
         contextLength: number | null;
@@ -15487,7 +15487,7 @@ export type GetChatConversationsResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -15515,7 +15515,7 @@ export type CreateChatConversationData = {
         agentId: string;
         title?: string | null;
         selectedModel?: string;
-        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         chatApiKeyId?: string | null;
     };
     path?: never;
@@ -15594,7 +15594,7 @@ export type CreateChatConversationResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -15776,7 +15776,7 @@ export type GetChatConversationResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -15803,7 +15803,7 @@ export type UpdateChatConversationData = {
     body?: {
         title?: string | null;
         selectedModel?: string;
-        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         chatApiKeyId?: string | null;
         agentId?: string;
         artifact?: string | null;
@@ -15887,7 +15887,7 @@ export type UpdateChatConversationResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -16078,7 +16078,7 @@ export type GenerateChatConversationTitleResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -16185,7 +16185,7 @@ export type UpdateChatMessageResponses = {
         chatApiKeyId: string | null;
         title: string | null;
         selectedModel: string;
-        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        selectedProvider: 'anthropic' | 'bedrock' | 'cerebras' | 'cohere' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'openai' | 'perplexity' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         hasCustomToolSelection: boolean;
         todoList: string | number | boolean | null | {
             [key: string]: unknown;
@@ -19768,6 +19768,152 @@ export type GetInteractionsResponses = {
             userId: string | null;
             sessionId: string | null;
             sessionSource: string | null;
+            request: GroqChatCompletionRequest;
+            processedRequest?: GroqChatCompletionRequest | null;
+            response: {
+                id: string;
+                choices: Array<{
+                    finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+                    index: number;
+                    logprobs: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+                     */
+                    message: {
+                        content: string | null;
+                        refusal?: string | null;
+                        role: 'assistant';
+                        annotations?: Array<unknown>;
+                        audio?: unknown;
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                         */
+                        function_call?: {
+                            arguments: string;
+                            name: string;
+                        } | null;
+                        tool_calls?: Array<{
+                            id: string;
+                            type: 'function';
+                            /**
+                             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                             */
+                            function: {
+                                arguments: string;
+                                name: string;
+                            };
+                        } | {
+                            id: string;
+                            type: 'custom';
+                            /**
+                             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                             */
+                            custom: {
+                                input: string;
+                                name: string;
+                            };
+                        }> | null;
+                    };
+                }>;
+                created: number;
+                model: string;
+                object: 'chat.completion';
+                server_tier?: string;
+                system_fingerprint?: string | null;
+                /**
+                 * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+                 */
+                usage?: {
+                    completion_tokens: number;
+                    prompt_tokens: number;
+                    total_tokens: number;
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+                     */
+                    completion_tokens_details?: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+                     */
+                    prompt_tokens_details?: unknown;
+                };
+                [key: string]: unknown | string | Array<{
+                    finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+                    index: number;
+                    logprobs: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+                     */
+                    message: {
+                        content: string | null;
+                        refusal?: string | null;
+                        role: 'assistant';
+                        annotations?: Array<unknown>;
+                        audio?: unknown;
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                         */
+                        function_call?: {
+                            arguments: string;
+                            name: string;
+                        } | null;
+                        tool_calls?: Array<{
+                            id: string;
+                            type: 'function';
+                            /**
+                             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                             */
+                            function: {
+                                arguments: string;
+                                name: string;
+                            };
+                        } | {
+                            id: string;
+                            type: 'custom';
+                            /**
+                             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                             */
+                            custom: {
+                                input: string;
+                                name: string;
+                            };
+                        }> | null;
+                    };
+                }> | number | 'chat.completion' | string | null | {
+                    completion_tokens: number;
+                    prompt_tokens: number;
+                    total_tokens: number;
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+                     */
+                    completion_tokens_details?: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+                     */
+                    prompt_tokens_details?: unknown;
+                } | undefined;
+            };
+            type: 'openrouter:chatCompletions';
+            model: string | null;
+            baselineModel: string | null;
+            inputTokens: number | null;
+            outputTokens: number | null;
+            baselineCost: string | null;
+            cost: string | null;
+            toonTokensBefore: number | null;
+            toonTokensAfter: number | null;
+            toonCostSavings: string | null;
+            toonSkipReason: string | null;
+            createdAt: string;
+            requestType?: 'main' | 'subagent';
+            externalAgentIdLabel?: string | null;
+        } | {
+            id: string;
+            profileId: string | null;
+            externalAgentId: string | null;
+            executionId: string | null;
+            userId: string | null;
+            sessionId: string | null;
+            sessionSource: string | null;
             request: VllmChatCompletionRequest;
             processedRequest?: VllmChatCompletionRequest | null;
             response: VllmChatCompletionResponse;
@@ -20818,6 +20964,152 @@ export type GetInteractionResponses = {
         processedRequest?: GroqChatCompletionRequest | null;
         response: GroqChatCompletionResponse;
         type: 'groq:chatCompletions';
+        model: string | null;
+        baselineModel: string | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        baselineCost: string | null;
+        cost: string | null;
+        toonTokensBefore: number | null;
+        toonTokensAfter: number | null;
+        toonCostSavings: string | null;
+        toonSkipReason: string | null;
+        createdAt: string;
+        requestType?: 'main' | 'subagent';
+        externalAgentIdLabel?: string | null;
+    } | {
+        id: string;
+        profileId: string | null;
+        externalAgentId: string | null;
+        executionId: string | null;
+        userId: string | null;
+        sessionId: string | null;
+        sessionSource: string | null;
+        request: GroqChatCompletionRequest;
+        processedRequest?: GroqChatCompletionRequest | null;
+        response: {
+            id: string;
+            choices: Array<{
+                finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+                index: number;
+                logprobs: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+                 */
+                message: {
+                    content: string | null;
+                    refusal?: string | null;
+                    role: 'assistant';
+                    annotations?: Array<unknown>;
+                    audio?: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                     */
+                    function_call?: {
+                        arguments: string;
+                        name: string;
+                    } | null;
+                    tool_calls?: Array<{
+                        id: string;
+                        type: 'function';
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                         */
+                        function: {
+                            arguments: string;
+                            name: string;
+                        };
+                    } | {
+                        id: string;
+                        type: 'custom';
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                         */
+                        custom: {
+                            input: string;
+                            name: string;
+                        };
+                    }> | null;
+                };
+            }>;
+            created: number;
+            model: string;
+            object: 'chat.completion';
+            server_tier?: string;
+            system_fingerprint?: string | null;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+             */
+            usage?: {
+                completion_tokens: number;
+                prompt_tokens: number;
+                total_tokens: number;
+                /**
+                 * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+                 */
+                completion_tokens_details?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+                 */
+                prompt_tokens_details?: unknown;
+            };
+            [key: string]: unknown | string | Array<{
+                finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+                index: number;
+                logprobs: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+                 */
+                message: {
+                    content: string | null;
+                    refusal?: string | null;
+                    role: 'assistant';
+                    annotations?: Array<unknown>;
+                    audio?: unknown;
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                     */
+                    function_call?: {
+                        arguments: string;
+                        name: string;
+                    } | null;
+                    tool_calls?: Array<{
+                        id: string;
+                        type: 'function';
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                         */
+                        function: {
+                            arguments: string;
+                            name: string;
+                        };
+                    } | {
+                        id: string;
+                        type: 'custom';
+                        /**
+                         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                         */
+                        custom: {
+                            input: string;
+                            name: string;
+                        };
+                    }> | null;
+                };
+            }> | number | 'chat.completion' | string | null | {
+                completion_tokens: number;
+                prompt_tokens: number;
+                total_tokens: number;
+                /**
+                 * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+                 */
+                completion_tokens_details?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+                 */
+                prompt_tokens_details?: unknown;
+            } | undefined;
+        };
+        type: 'openrouter:chatCompletions';
         model: string | null;
         baselineModel: string | null;
         inputTokens: number | null;
@@ -26371,7 +26663,7 @@ export type GetOptimizationRulesResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         targetModel: string;
         enabled: boolean;
         createdAt: string;
@@ -26391,7 +26683,7 @@ export type CreateOptimizationRuleData = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         targetModel: string;
         enabled?: boolean;
         createdAt?: unknown;
@@ -26474,7 +26766,7 @@ export type CreateOptimizationRuleResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         targetModel: string;
         enabled: boolean;
         createdAt: string;
@@ -26573,7 +26865,7 @@ export type UpdateOptimizationRuleData = {
         } | {
             hasTools: boolean;
         }>;
-        provider?: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider?: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         targetModel?: string;
         enabled?: boolean;
         createdAt?: unknown;
@@ -26658,7 +26950,7 @@ export type UpdateOptimizationRuleResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'bedrock' | 'cohere' | 'cerebras' | 'mistral' | 'perplexity' | 'groq' | 'openrouter' | 'vllm' | 'ollama' | 'zhipuai' | 'minimax';
         targetModel: string;
         enabled: boolean;
         createdAt: string;

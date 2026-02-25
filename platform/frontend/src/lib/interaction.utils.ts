@@ -23,6 +23,7 @@ type InteractionFactory = (interaction: Interaction) => InteractionUtils;
 
 const interactionFactories: Record<Interaction["type"], InteractionFactory> = {
   "openai:chatCompletions": (i) => new OpenAiChatCompletionInteraction(i),
+  "openrouter:chatCompletions": (i) => new OpenAiChatCompletionInteraction(i),
   "anthropic:messages": (i) => new AnthropicMessagesInteraction(i),
   "bedrock:converse": (i) => new BedrockConverseInteraction(i),
   "cerebras:chatCompletions": (i) => new CerebrasChatCompletionInteraction(i),

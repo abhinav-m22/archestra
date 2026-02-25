@@ -216,6 +216,22 @@ const bedrockConfig: ExecutionMetricsTestConfig = {
   }),
 };
 
+const openrouterConfig: ExecutionMetricsTestConfig = {
+  providerName: "OpenRouter",
+
+  endpoint: (agentId) => `/v1/openrouter/${agentId}/chat/completions`,
+
+  headers: (wiremockStub) => ({
+    Authorization: `Bearer ${wiremockStub}`,
+    "Content-Type": "application/json",
+  }),
+
+  buildRequest: (content) => ({
+    model: "test-openrouter-execution-metrics",
+    messages: [{ role: "user", content }],
+  }),
+};
+
 // =============================================================================
 // Test Suite
 // =============================================================================
@@ -234,6 +250,7 @@ const testConfigsMap = {
   zhipuai: zhipuaiConfig,
   minimax: minimaxConfig,
   bedrock: bedrockConfig,
+  openrouter: openrouterConfig,
   perplexity: null, // Perplexity has no tool calling - execution metrics require tool call flows
 } satisfies Record<SupportedProvider, ExecutionMetricsTestConfig | null>;
 

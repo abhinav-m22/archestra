@@ -404,6 +404,7 @@ class ModelsDevClient {
     const preferredSourcePrefixes: Record<SupportedProvider, string[]> = {
       gemini: ["google/"], // Prefer google over google-vertex
       openai: ["openai/", "deepseek/"], // Prefer direct providers over aggregators
+      openrouter: ["openrouter/"],
       anthropic: ["anthropic/"],
       cohere: ["cohere/"],
       cerebras: ["cerebras/"],

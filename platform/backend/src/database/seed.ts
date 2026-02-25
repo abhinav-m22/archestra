@@ -371,6 +371,7 @@ async function seedChatApiKeysFromEnv(): Promise<void> {
   const providerEnvVars: Record<SupportedProvider, string> = {
     anthropic: config.chat.anthropic.apiKey,
     openai: config.chat.openai.apiKey,
+    openrouter: config.chat.openrouter.apiKey,
     gemini: config.chat.gemini.apiKey,
     cerebras: config.chat.cerebras.apiKey,
     cohere: config.chat.cohere.apiKey,
@@ -462,6 +463,7 @@ function getProviderDisplayName(provider: SupportedProvider): string {
   const displayNames: Record<SupportedProvider, string> = {
     anthropic: "Anthropic",
     openai: "OpenAI",
+    openrouter: "OpenRouter",
     gemini: "Google",
     cerebras: "Cerebras",
     cohere: "Cohere",
