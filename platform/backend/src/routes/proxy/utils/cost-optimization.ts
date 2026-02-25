@@ -17,6 +17,7 @@ import type {
   Minimax,
   Mistral,
   OpenAi,
+  Openrouter,
   Perplexity,
   Vllm,
   Zhipuai,
@@ -28,6 +29,7 @@ type ProviderMessages = {
   cohere: Cohere.Types.ChatRequest["messages"];
   gemini: Gemini.Types.GenerateContentRequest["contents"];
   groq: Groq.Types.ChatCompletionsRequest["messages"];
+  openrouter: Openrouter.Types.ChatCompletionsRequest["messages"];
   mistral: Mistral.Types.ChatCompletionsRequest["messages"];
   perplexity: Perplexity.Types.ChatCompletionsRequest["messages"];
   minimax: Minimax.Types.ChatCompletionsRequest["messages"];
