@@ -197,7 +197,10 @@ export const openrouterAdapterFactory: LLMProvider<
     return new OpenrouterResponseAdapter(response);
   },
 
-  createStreamAdapter(): LLMStreamAdapter<OpenrouterStreamChunk, OpenrouterResponse> {
+  createStreamAdapter(): LLMStreamAdapter<
+    OpenrouterStreamChunk,
+    OpenrouterResponse
+  > {
     return new OpenrouterStreamAdapter();
   },
 
@@ -218,7 +221,10 @@ export const openrouterAdapterFactory: LLMProvider<
 
   spanName: "chat",
 
-  createClient(apiKey: string | undefined, options?: CreateClientOptions): OpenAIProvider {
+  createClient(
+    apiKey: string | undefined,
+    options?: CreateClientOptions,
+  ): OpenAIProvider {
     if (options?.mockMode) {
       return new MockOpenAIClient() as unknown as OpenAIProvider;
     }
@@ -263,7 +269,10 @@ export const openrouterAdapterFactory: LLMProvider<
     });
   },
 
-  async execute(client: unknown, request: OpenrouterRequest): Promise<OpenrouterResponse> {
+  async execute(
+    client: unknown,
+    request: OpenrouterRequest,
+  ): Promise<OpenrouterResponse> {
     const openrouterClient = client as OpenAIProvider;
     const openrouterRequest = {
       ...request,
@@ -286,7 +295,8 @@ export const openrouterAdapterFactory: LLMProvider<
       stream_options: { include_usage: true },
     } as unknown as ChatCompletionCreateParamsStreaming;
 
-    const stream = await openrouterClient.chat.completions.create(openrouterRequest);
+    const stream =
+      await openrouterClient.chat.completions.create(openrouterRequest);
 
     return {
       [Symbol.asyncIterator]: async function* () {
