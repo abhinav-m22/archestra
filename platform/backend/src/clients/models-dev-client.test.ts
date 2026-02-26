@@ -334,7 +334,9 @@ describe("ModelsDevClient", () => {
         "anthropic/claude-3.5-sonnet",
       );
       expect(openrouterMetadata).not.toBeNull();
-      expect(openrouterMetadata?.description).toBe("Anthropic Claude 3.5 Sonnet");
+      expect(openrouterMetadata?.description).toBe(
+        "Anthropic Claude 3.5 Sonnet",
+      );
     });
 
     test("maps Google provider to Gemini", async () => {
