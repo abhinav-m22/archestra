@@ -785,7 +785,7 @@ These environment variables set the default base URL for each LLM provider. Per-
 
 - **`ARCHESTRA_CHAT_<PROVIDER>_API_KEY`** - LLM provider API keys for the built-in Chat feature.
 
-  - Supported `<PROVIDER>` values: `ANTHROPIC`, `OPENAI`, `GEMINI`, `CEREBRAS`, `COHERE`, `GROQ`, `MISTRAL`, `PERPLEXITY`, `VLLM`, `OLLAMA`, `ZHIPUAI`, `DEEPSEEK`, `BEDROCK`, `MINIMAX`
+  - Supported `<PROVIDER>` values: `ANTHROPIC`, `OPENAI`, `OPENROUTER`, `GEMINI`, `CEREBRAS`, `COHERE`, `GROQ`, `MISTRAL`, `PERPLEXITY`, `VLLM`, `OLLAMA`, `ZHIPUAI`, `DEEPSEEK`, `BEDROCK`, `MINIMAX`
   - These serve as fallback API keys when no organization default or profile-specific key is configured
   - Note: `ARCHESTRA_CHAT_VLLM_API_KEY` and `ARCHESTRA_CHAT_OLLAMA_API_KEY` are optional as most vLLM/Ollama deployments don't require authentication
   - See [Chat](/docs/platform-chat) for full details on API key configuration and resolution order

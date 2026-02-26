@@ -4,7 +4,7 @@
     "urlPath": "/openrouter/api/v1/chat/completions",
     "headers": {
       "Authorization": {
-        "contains": "openrouter-tool-invocation"
+        "contains": "openrouter-blocks-tool-untrusted-data"
       }
     }
   },
@@ -14,7 +14,7 @@
       "Content-Type": "application/json"
     },
     "jsonBody": {
-      "id": "chatcmpl-tool-invocation-test",
+      "id": "chatcmpl-test-123",
       "object": "chat.completion",
       "created": 1234567890,
       "model": "openrouter/auto",
@@ -23,27 +23,27 @@
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "Tool invocation test response.",
+            "content": null,
+            "refusal": null,
             "tool_calls": [
               {
-                "id": "call_123",
+                "id": "call_test_123",
                 "type": "function",
                 "function": {
-                  "name": "read_file",
-                  "arguments": "{\"file_path\":\"/tmp/test\"}"
+                  "name": "e2e_read_file_openrouter",
+                  "arguments": "{\"file_path\":\"/etc/passwd\"}"
                 }
               }
-            ],
-            "refusal": null
+            ]
           },
           "finish_reason": "tool_calls",
           "logprobs": null
         }
       ],
       "usage": {
-        "prompt_tokens": 50,
+        "prompt_tokens": 100,
         "completion_tokens": 20,
-        "total_tokens": 70
+        "total_tokens": 120
       }
     }
   }

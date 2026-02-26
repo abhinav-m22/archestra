@@ -255,14 +255,11 @@ export const openrouterAdapterFactory: LLMProvider<
         : {}),
     };
 
-    const authorizationHeader = `Bearer ${rawApiKey}`;
-
     return new OpenAIProvider({
       apiKey: rawApiKey,
       baseURL: options?.baseUrl ?? config.llm.openrouter.baseUrl,
       fetch: customFetch,
       defaultHeaders: {
-        Authorization: authorizationHeader,
         ...attributionHeaders,
         ...(options?.defaultHeaders ?? {}),
       },

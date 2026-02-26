@@ -99,7 +99,7 @@ const envApiKeyGetters: Record<
   mistral: () => config.chat.mistral.apiKey,
   ollama: () => config.chat.ollama.apiKey,
   openai: () => config.chat.openai.apiKey,
-  openrouter: () => config.chat.openrouter.apiKey,
+  openrouter: () => config.chat.openrouter?.apiKey || undefined,
   perplexity: () => config.chat.perplexity.apiKey,
   groq: () => config.chat.groq.apiKey,
   vllm: () => config.chat.vllm.apiKey,
