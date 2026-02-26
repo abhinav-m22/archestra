@@ -698,7 +698,7 @@ The following environment variables can be used to configure Archestra Platform.
 
 These environment variables set the default base URL for each LLM provider. Per-key base URLs configured in **Settings > LLM API Keys** take precedence over these defaults. See [LLM Proxy Authentication](/docs/platform-llm-proxy-authentication) for details on per-key base URLs and virtual API keys.
 
-- **`ARCHESTRA_OPENAI_BASE_URL`** - Override the OpenAI API base URL.
+- **`ARCHESTRA_AI_BASE_URL`** - Override the OpenAI API base URL.
 
   - Default: `https://api.openai.com/v1`
   - Use this to point to your own proxy, an OpenAI-compatible API, or other custom endpoints
@@ -718,6 +718,11 @@ These environment variables set the default base URL for each LLM provider. Per-
 
   - Default: `https://api.groq.com/openai/v1`
   - Use this to point to your own proxy, a Groq-compatible API, or other custom endpoints
+
+- **`ARCHESTRA_OPENROUTER_BASE_URL`** - Override the OpenRouter API base URL.
+
+  - Default: `https://openrouter.ai/api/v1`
+  - Use this to point to your own proxy, an OpenRouter-compatible API, or other custom endpoints
 
 - **`ARCHESTRA_VLLM_BASE_URL`** - Base URL for your vLLM server.
 
