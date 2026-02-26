@@ -17,6 +17,7 @@ export const SupportedProvidersSchema = z.enum([
   "vllm",
   "ollama",
   "zhipuai",
+  "deepseek",
   "minimax",
 ]);
 
@@ -34,6 +35,7 @@ export const SupportedProvidersDiscriminatorSchema = z.enum([
   "vllm:chatCompletions",
   "ollama:chatCompletions",
   "zhipuai:chatCompletions",
+  "deepseek:chatCompletions",
   "minimax:chatCompletions",
 ]);
 
@@ -57,6 +59,7 @@ export const providerDisplayNames: Record<SupportedProvider, string> = {
   vllm: "vLLM",
   ollama: "Ollama",
   zhipuai: "Zhipu AI",
+  deepseek: "DeepSeek",
   minimax: "MiniMax",
 };
 
@@ -104,6 +107,7 @@ export const DEFAULT_PROVIDER_BASE_URLS: Record<SupportedProvider, string> = {
   vllm: "",
   ollama: "http://localhost:11434/v1",
   zhipuai: "https://api.z.ai/api/paas/v4",
+  deepseek: "https://api.deepseek.com",
   minimax: "https://api.minimax.io/v1",
 };
 
@@ -177,6 +181,10 @@ export const MODEL_MARKER_PATTERNS: Record<
   zhipuai: {
     fastest: ["glm-4-flash", "glm-flash"],
     best: ["glm-4-plus", "glm-4"],
+  },
+  deepseek: {
+    fastest: ["deepseek-chat"],
+    best: ["deepseek-reasoner"],
   },
   minimax: {
     fastest: ["minimax-m2.5-highspeed", "minimax-m2.1-lightning"],
