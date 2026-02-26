@@ -202,7 +202,14 @@ export const openrouterAdapterFactory: LLMProvider<
   },
 
   extractApiKey(headers: OpenrouterHeaders): string | undefined {
-    return headers.authorization;
+    const record = headers as unknown as Record<string, unknown>;
+    const auth = record.authorization ?? record.Authorization;
+    if (typeof auth !== "string") return undefined;
+
+    // Fastify/Zod headers schemas may strip the "Bearer " prefix via transforms.
+    // Our proxy handler already strips Bearer when resolving virtual keys, but
+    // we must still send a proper Authorization header to OpenRouter upstream.
+    return /^Bearer\s+/i.test(auth) ? auth : `Bearer ${auth}`;
   },
 
   getBaseUrl(): string | undefined {
@@ -219,6 +226,11 @@ export const openrouterAdapterFactory: LLMProvider<
     if (!apiKey) {
       throw new Error("API key required for OpenRouter");
     }
+
+    // The OpenAI SDK expects a raw key and will construct `Authorization: Bearer <key>`.
+    // Some upstream plumbing may already provide a Bearer-prefixed value; strip it to
+    // avoid `Bearer Bearer <key>`.
+    const rawApiKey = apiKey.replace(/^Bearer\s+/i, "");
 
     const customFetch = options?.agent
       ? metrics.llm.getObservableFetch(
@@ -237,11 +249,14 @@ export const openrouterAdapterFactory: LLMProvider<
         : {}),
     };
 
+    const authorizationHeader = `Bearer ${rawApiKey}`;
+
     return new OpenAIProvider({
-      apiKey,
+      apiKey: rawApiKey,
       baseURL: options?.baseUrl ?? config.llm.openrouter.baseUrl,
       fetch: customFetch,
       defaultHeaders: {
+        Authorization: authorizationHeader,
         ...attributionHeaders,
         ...(options?.defaultHeaders ?? {}),
       },

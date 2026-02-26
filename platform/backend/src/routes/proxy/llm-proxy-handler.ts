@@ -236,6 +236,12 @@ export async function handleLLMProxy<
     }
   }
 
+  // Normalize provider API key into a Bearer header value for upstream providers.
+  // Some schemas/transforms strip the "Bearer " prefix; OpenRouter requires it.
+  if (apiKey && !/^Bearer\s+/i.test(apiKey)) {
+    apiKey = `Bearer ${apiKey}`;
+  }
+
   // 4. Enforce authentication for keyless providers on external requests
   assertAuthenticatedForKeylessProvider(
     apiKey,
