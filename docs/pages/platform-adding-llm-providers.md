@@ -292,6 +292,7 @@ Existing provider implementations for reference:
 **OpenAI-compatible implementations** (reuse OpenAI types/adapters with minor modifications):
 
 - Groq: `backend/src/routes/proxy/routesv2/groq.ts`, `backend/src/routes/proxy/adapterV2/groq.ts` (best starting point — cleanest example of OpenAI reuse)
+- xAI: `backend/src/routes/proxy/routesv2/xai.ts`, `backend/src/routes/proxy/adapterV2/xai.ts`
 - vLLM: `backend/src/routes/proxy/routesv2/vllm.ts`, `backend/src/routes/proxy/adapterV2/vllm.ts`
 - Ollama: `backend/src/routes/proxy/routesv2/ollama.ts`, `backend/src/routes/proxy/adapterV2/ollama.ts`
 - ZhipuAI: `backend/src/routes/proxy/routesv2/zhipuai.ts`, `backend/src/routes/proxy/adapterV2/zhipuai.ts`
