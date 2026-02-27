@@ -34092,6 +34092,420 @@ export type VllmChatCompletionsWithAgentResponses = {
 
 export type VllmChatCompletionsWithAgentResponse = VllmChatCompletionsWithAgentResponses[keyof VllmChatCompletionsWithAgentResponses];
 
+export type XaiChatCompletionsWithDefaultAgentData = {
+    body?: OpenrouterChatCompletionRequestInput;
+    headers: {
+        /**
+         * The user agent of the client
+         */
+        'user-agent'?: string;
+        /**
+         * Bearer token for OpenAI
+         */
+        authorization: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/xai/chat/completions';
+};
+
+export type XaiChatCompletionsWithDefaultAgentErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type XaiChatCompletionsWithDefaultAgentError = XaiChatCompletionsWithDefaultAgentErrors[keyof XaiChatCompletionsWithDefaultAgentErrors];
+
+export type XaiChatCompletionsWithDefaultAgentResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        id: string;
+        choices: Array<{
+            finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+            index: number;
+            logprobs: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+             */
+            message: {
+                content: string | null;
+                refusal?: string | null;
+                role: 'assistant';
+                annotations?: Array<unknown>;
+                audio?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                 */
+                function_call?: {
+                    arguments: string;
+                    name: string;
+                } | null;
+                tool_calls?: Array<{
+                    id: string;
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                     */
+                    function: {
+                        arguments: string;
+                        name: string;
+                    };
+                } | {
+                    id: string;
+                    type: 'custom';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                     */
+                    custom: {
+                        input: string;
+                        name: string;
+                    };
+                }> | null;
+            };
+        }>;
+        created: number;
+        model: string;
+        object: 'chat.completion';
+        server_tier?: string;
+        system_fingerprint?: string | null;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+         */
+        usage?: {
+            completion_tokens: number;
+            prompt_tokens: number;
+            total_tokens: number;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+             */
+            completion_tokens_details?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+             */
+            prompt_tokens_details?: unknown;
+        };
+        [key: string]: unknown | string | Array<{
+            finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+            index: number;
+            logprobs: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+             */
+            message: {
+                content: string | null;
+                refusal?: string | null;
+                role: 'assistant';
+                annotations?: Array<unknown>;
+                audio?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                 */
+                function_call?: {
+                    arguments: string;
+                    name: string;
+                } | null;
+                tool_calls?: Array<{
+                    id: string;
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                     */
+                    function: {
+                        arguments: string;
+                        name: string;
+                    };
+                } | {
+                    id: string;
+                    type: 'custom';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                     */
+                    custom: {
+                        input: string;
+                        name: string;
+                    };
+                }> | null;
+            };
+        }> | number | 'chat.completion' | string | null | {
+            completion_tokens: number;
+            prompt_tokens: number;
+            total_tokens: number;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+             */
+            completion_tokens_details?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+             */
+            prompt_tokens_details?: unknown;
+        } | undefined;
+    };
+};
+
+export type XaiChatCompletionsWithDefaultAgentResponse = XaiChatCompletionsWithDefaultAgentResponses[keyof XaiChatCompletionsWithDefaultAgentResponses];
+
+export type XaiChatCompletionsWithAgentData = {
+    body?: OpenrouterChatCompletionRequestInput;
+    headers: {
+        /**
+         * The user agent of the client
+         */
+        'user-agent'?: string;
+        /**
+         * Bearer token for OpenAI
+         */
+        authorization: string;
+    };
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/v1/xai/{agentId}/chat/completions';
+};
+
+export type XaiChatCompletionsWithAgentErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type XaiChatCompletionsWithAgentError = XaiChatCompletionsWithAgentErrors[keyof XaiChatCompletionsWithAgentErrors];
+
+export type XaiChatCompletionsWithAgentResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        id: string;
+        choices: Array<{
+            finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+            index: number;
+            logprobs: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+             */
+            message: {
+                content: string | null;
+                refusal?: string | null;
+                role: 'assistant';
+                annotations?: Array<unknown>;
+                audio?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                 */
+                function_call?: {
+                    arguments: string;
+                    name: string;
+                } | null;
+                tool_calls?: Array<{
+                    id: string;
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                     */
+                    function: {
+                        arguments: string;
+                        name: string;
+                    };
+                } | {
+                    id: string;
+                    type: 'custom';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                     */
+                    custom: {
+                        input: string;
+                        name: string;
+                    };
+                }> | null;
+            };
+        }>;
+        created: number;
+        model: string;
+        object: 'chat.completion';
+        server_tier?: string;
+        system_fingerprint?: string | null;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+         */
+        usage?: {
+            completion_tokens: number;
+            prompt_tokens: number;
+            total_tokens: number;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+             */
+            completion_tokens_details?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+             */
+            prompt_tokens_details?: unknown;
+        };
+        [key: string]: unknown | string | Array<{
+            finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+            index: number;
+            logprobs: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+             */
+            message: {
+                content: string | null;
+                refusal?: string | null;
+                role: 'assistant';
+                annotations?: Array<unknown>;
+                audio?: unknown;
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+                 */
+                function_call?: {
+                    arguments: string;
+                    name: string;
+                } | null;
+                tool_calls?: Array<{
+                    id: string;
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                     */
+                    function: {
+                        arguments: string;
+                        name: string;
+                    };
+                } | {
+                    id: string;
+                    type: 'custom';
+                    /**
+                     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                     */
+                    custom: {
+                        input: string;
+                        name: string;
+                    };
+                }> | null;
+            };
+        }> | number | 'chat.completion' | string | null | {
+            completion_tokens: number;
+            prompt_tokens: number;
+            total_tokens: number;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+             */
+            completion_tokens_details?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+             */
+            prompt_tokens_details?: unknown;
+        } | undefined;
+    };
+};
+
+export type XaiChatCompletionsWithAgentResponse = XaiChatCompletionsWithAgentResponses[keyof XaiChatCompletionsWithAgentResponses];
+
 export type ZhipuaiChatCompletionsWithDefaultAgentData = {
     body?: ZhipuaiChatCompletionRequestInput;
     headers: {
