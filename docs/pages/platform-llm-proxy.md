@@ -45,7 +45,6 @@ graph TB
         P1["OpenAI"]
         P2["Anthropic"]
         P3["Gemini"]
-        P6["xAI"]
     end
 
     subgraph SelfHosted["Self-Hosted"]
@@ -61,14 +60,12 @@ graph TB
     Guard --> P1
     Guard --> P2
     Guard --> P3
-    Guard --> P6
     Guard --> P4
     Guard --> P5
 
     P1 -.->|Response| Guard
     P2 -.->|Response| Guard
     P3 -.->|Response| Guard
-    P6 -.->|Response| Guard
     P4 -.->|Response| Guard
     P5 -.->|Response| Guard
 
