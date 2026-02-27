@@ -14,16 +14,16 @@
       "Content-Type": "application/json"
     },
     "jsonBody": {
-      "id": "chatcmpl-execution-metrics",
+      "id": "chatcmpl-execution-metrics-xai",
       "object": "chat.completion",
       "created": 1234567890,
-      "model": "grok-4",
+      "model": "grok-2-1212",
       "choices": [
         {
           "index": 0,
           "message": {
             "role": "assistant",
-            "content": "Execution metrics test response.",
+            "content": "Execution metrics test response for xAI.",
             "refusal": null
           },
           "finish_reason": "stop",
