@@ -269,6 +269,7 @@ const testConfigsMap = {
   bedrock: bedrockConfig,
   openrouter: openrouterConfig,
   perplexity: null, // Perplexity has no tool calling - execution metrics require tool call flows
+  xai: null, // TODO: add xAI execution metrics coverage in a dedicated milestone
 } satisfies Record<SupportedProvider, ExecutionMetricsTestConfig | null>;
 
 const testConfigs = Object.values(testConfigsMap).filter(

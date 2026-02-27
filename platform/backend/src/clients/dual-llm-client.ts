@@ -1248,6 +1248,12 @@ export const DeepSeekDualLlmClient = createOpenAiCompatibleDualLlmClient({
   defaultModel: "deepseek-chat",
 });
 
+export const XaiDualLlmClient = createOpenAiCompatibleDualLlmClient({
+  providerLabel: "xAI",
+  baseUrl: config.llm.xai.baseUrl,
+  defaultModel: "grok-4",
+});
+
 /**
  * Bedrock implementation of DualLlmClient
  * Uses AWS Bedrock Converse API for chat completions
@@ -1456,6 +1462,10 @@ const dualLlmClientFactories: Record<SupportedProvider, DualLlmClientFactory> =
     groq: (apiKey, model) => {
       if (!apiKey) throw new Error("API key required for Groq dual LLM");
       return new GroqDualLlmClient(apiKey, model);
+    },
+    xai: (apiKey, model) => {
+      if (!apiKey) throw new Error("API key required for xAI dual LLM");
+      return new XaiDualLlmClient(apiKey, model);
     },
     gemini: (apiKey) => {
       // Gemini supports Vertex AI mode where apiKey may be undefined

@@ -412,6 +412,7 @@ class ModelsDevClient {
       mistral: ["mistral/"],
       perplexity: ["perplexity/"],
       groq: ["groq/"],
+      xai: ["xai/"],
       bedrock: ["amazon-bedrock/"],
       ollama: ["ollama/"],
       vllm: ["vllm/"],

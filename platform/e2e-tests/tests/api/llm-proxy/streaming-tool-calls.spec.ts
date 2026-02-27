@@ -296,6 +296,7 @@ const testConfigsMap = {
   bedrock: null, // Bedrock uses binary AWS EventStream format which cannot be mocked via WireMock SSE
   openrouter: openrouterConfig,
   perplexity: null, // Perplexity does not support tool calling
+  xai: null, // TODO: add xAI streaming tool-calls coverage in a dedicated milestone
 } satisfies Record<SupportedProvider, StreamingToolCallTestConfig | null>;
 
 const testConfigs = Object.values(testConfigsMap).filter(
