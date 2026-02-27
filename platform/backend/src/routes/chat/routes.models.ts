@@ -58,8 +58,11 @@ export interface ModelInfo {
 /**
  * Fetch models from xAI API (OpenAI-compatible)
  */
-async function fetchXaiModels(apiKey: string): Promise<ModelInfo[]> {
-  const baseUrl = config.llm.xai.baseUrl;
+async function fetchXaiModels(
+  apiKey: string,
+  baseUrlOverride?: string | null,
+): Promise<ModelInfo[]> {
+  const baseUrl = baseUrlOverride || config.llm.xai.baseUrl;
   const url = `${baseUrl}/models`;
 
   const response = await fetch(url, {
