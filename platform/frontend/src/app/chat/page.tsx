@@ -411,8 +411,9 @@ export default function ChatPage() {
   );
 
   // Fetch conversation with messages
+  const conversationQuery = useConversation(conversationId);
   const { data: conversation, isLoading: isLoadingConversation } =
-    useConversation(conversationId);
+    conversationQuery;
 
   // Track title generation for typing animation in the header
   const conversationForTitleTracking = useMemo(
@@ -605,6 +606,27 @@ export default function ChatPage() {
   // Use actual token usage when available from the stream (no fallback to estimation)
   const tokensUsed = tokenUsage?.totalTokens;
 
+  // Fallback: Sync if conversation data arrives before primary effect runs
+  useEffect(() => {
+    if (
+      !setMessages ||
+      !conversation?.messages ||
+      conversation.id !== conversationId ||
+      loadedConversationRef.current === conversationId // Already synced
+    ) {
+      return;
+    }
+
+    // Sync when conversation has data but local state is empty
+    const hasNoMessages = messages.length === 0;
+    const hasConversationData = conversation.messages.length > 0;
+
+    if (hasNoMessages && hasConversationData) {
+      setMessages(conversation.messages as UIMessage[]);
+      loadedConversationRef.current = conversationId;
+    }
+  }, [conversation, conversationId, messages.length, setMessages]);
+
   useEffect(() => {
     if (
       !pendingCustomServerToolCall ||
@@ -656,23 +678,31 @@ export default function ChatPage() {
       return;
     }
 
-    // When switching to a different conversation, reset the loaded ref
-    if (loadedConversationRef.current !== conversationId) {
-      loadedConversationRef.current = undefined;
-    }
+    // Only sync once per conversation to avoid race conditions with streaming
+    const hasNotSyncedYet = loadedConversationRef.current !== conversationId;
 
-    // Sync messages from backend only on initial load or when recovering from empty state
-    // The AI SDK manages message state correctly during streaming, so we shouldn't overwrite it
     const shouldSync =
       conversation?.messages &&
       conversation.id === conversationId &&
       status !== "submitted" &&
       status !== "streaming" &&
       !userMessageJustEdited.current &&
-      (loadedConversationRef.current !== conversationId ||
-        messages.length === 0);
+      hasNotSyncedYet;
 
     if (shouldSync) {
+      // Verify sync hasn't already occurred by comparing first message ID
+      const messagesUnchanged =
+        messages.length === conversation?.messages?.length &&
+        messages.length > 0 &&
+        (conversation?.messages?.[0] as UIMessage | undefined)?.id ===
+          messages[0]?.id;
+
+      if (messagesUnchanged) {
+        // Already synced, skip
+        loadedConversationRef.current = conversationId;
+        return;
+      }
+
       setMessages(conversation.messages as UIMessage[]);
       loadedConversationRef.current = conversationId;
 
@@ -718,28 +748,29 @@ export default function ChatPage() {
     }
   }, [
     conversationId,
-    conversation,
+    conversation?.id,
+    conversation?.messages,
+    messages,
     setMessages,
     sendMessage,
     status,
-    messages.length,
   ]);
 
-  // Merge database UUIDs from backend into local message state
-  // This runs after streaming completes and backend query has fetched
+  // Merge database UUIDs into local state after sync completes
   useEffect(() => {
     if (
       !setMessages ||
       !conversation?.messages ||
       conversation.id !== conversationId ||
       status === "streaming" ||
-      status === "submitted"
+      status === "submitted" ||
+      loadedConversationRef.current !== conversationId
     ) {
       return;
     }
 
-    // Only merge IDs if backend has same or more messages than local state
-    if (conversation.messages.length < messages.length) {
+    // Only merge IDs if backend and local state have same message count
+    if (conversation.messages.length !== messages.length) {
       return;
     }
 

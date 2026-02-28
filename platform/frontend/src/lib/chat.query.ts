@@ -55,8 +55,25 @@ export function useConversation(conversationId?: string) {
     enabled: !!conversationId,
     staleTime: 0, // Always refetch to ensure we have the latest messages
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: false, // Don't refetch when window gains focus
-    retry: false, // Don't retry on error to avoid multiple 404s
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch on mount - critical for reload scenarios
+    retry: 3, // Retry failed requests
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    refetchInterval: (query) => {
+      // If the last message is from the user, the assistant might still be generating in the background.
+      // E.g., user reloaded page before stream finished. Poll to catch the background completion.
+      const data = query.state.data as
+        | { messages?: { role: string }[] }
+        | undefined
+        | null;
+      if (data?.messages && data.messages.length > 0) {
+        const lastMessage = data.messages[data.messages.length - 1];
+        if (lastMessage.role === "user") {
+          return 3000;
+        }
+      }
+      return false;
+    },
   });
 }
 
