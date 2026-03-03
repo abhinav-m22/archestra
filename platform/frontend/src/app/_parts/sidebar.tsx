@@ -17,11 +17,17 @@ import {
   Slack,
   Star,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
 import { ChatSidebarSection } from "@/app/_parts/chat-sidebar-section";
+import { AppLogo } from "@/components/app-logo";
+import {
+  COMMUNITY_BUG_REPORT_URL,
+  COMMUNITY_DOCS_URL,
+  COMMUNITY_GITHUB_URL,
+  COMMUNITY_SLACK_URL,
+} from "@/components/community-links";
 import { SidebarWarningsAccordion } from "@/components/sidebar-warnings-accordion";
 import {
   Sidebar,
@@ -43,7 +49,6 @@ import { useIsAuthenticated } from "@/lib/auth.hook";
 import { usePermissionMap } from "@/lib/auth.query";
 import config from "@/lib/config";
 import { useGithubStars } from "@/lib/github.query";
-import { useOrgTheme } from "@/lib/theme.hook";
 
 interface NavSubItem {
   title: string;
@@ -88,12 +93,15 @@ const contentNavGroups: NavGroup[] = [
         title: "Agents",
         url: "/agents",
         icon: Bot,
+        customIsActive: (pathname: string) =>
+          pathname.startsWith("/agents") &&
+          !pathname.startsWith("/agents/triggers"),
         subItems: [
           {
             title: "Triggers",
-            url: "/agent-triggers/ms-teams",
+            url: "/agents/triggers/ms-teams",
             customIsActive: (pathname: string) =>
-              pathname.startsWith("/agent-triggers"),
+              pathname.startsWith("/agents/triggers"),
           },
         ],
       },
@@ -104,23 +112,23 @@ const contentNavGroups: NavGroup[] = [
     items: [
       {
         title: "MCPs",
-        url: "/mcp-catalog/registry",
+        url: "/mcp/registry",
         icon: Route,
         customIsActive: (pathname: string) =>
-          pathname.startsWith("/mcp-catalog"),
+          pathname.startsWith("/mcp/registry"),
         subItems: [
           {
             title: "Gateways",
-            url: "/mcp-gateways",
+            url: "/mcp/gateways",
             customIsActive: (pathname: string) =>
-              pathname.startsWith("/mcp-gateways"),
+              pathname.startsWith("/mcp/gateways"),
           },
           {
             title: "Guardrails",
-            url: "/tool-policies",
+            url: "/mcp/tool-policies",
             testId: E2eTestId.SidebarNavGuardrails,
             customIsActive: (pathname: string) =>
-              pathname.startsWith("/tool-policies"),
+              pathname.startsWith("/mcp/tool-policies"),
           },
         ],
       },
@@ -131,19 +139,19 @@ const contentNavGroups: NavGroup[] = [
     items: [
       {
         title: "LLM Proxies",
-        url: "/llm-proxies",
+        url: "/llm/proxies",
         icon: Network,
-        customIsActive: (pathname: string) => pathname === "/llm-proxies",
+        customIsActive: (pathname: string) => pathname === "/llm/proxies",
         subItems: [
           {
             title: "Providers",
-            url: "/llm-proxies/provider-settings",
+            url: "/llm/providers",
             customIsActive: (pathname: string) =>
-              pathname.startsWith("/llm-proxies/provider-settings"),
+              pathname.startsWith("/llm/providers"),
           },
           {
             title: "Cost & Limits",
-            url: "/cost",
+            url: "/llm/cost",
           },
         ],
       },
@@ -154,9 +162,10 @@ const contentNavGroups: NavGroup[] = [
     items: [
       {
         title: "Logs",
-        url: "/logs/llm-proxy",
+        url: "/llm/logs",
         icon: MessagesSquare,
-        customIsActive: (pathname: string) => pathname.startsWith("/logs"),
+        customIsActive: (pathname: string) =>
+          pathname.startsWith("/llm/logs") || pathname.startsWith("/mcp/logs"),
       },
       {
         title: "Connect",
@@ -311,7 +320,7 @@ const NavSecondary = ({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
-                    href="https://github.com/archestra-ai/archestra"
+                    href={COMMUNITY_GITHUB_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -329,7 +338,7 @@ const NavSecondary = ({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
-                    href="https://archestra.ai/docs/"
+                    href={COMMUNITY_DOCS_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -341,7 +350,7 @@ const NavSecondary = ({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
-                    href="https://archestra.ai/join-slack"
+                    href={COMMUNITY_SLACK_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -353,7 +362,7 @@ const NavSecondary = ({
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <a
-                    href="https://github.com/archestra-ai/archestra/issues/new"
+                    href={COMMUNITY_BUG_REPORT_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -376,41 +385,12 @@ export function AppSidebar() {
   const isAuthenticated = useIsAuthenticated();
   const { data: starCount } = useGithubStars();
   const formattedStarCount = starCount ?? "";
-  const { logo, isLoadingAppearance } = useOrgTheme() ?? {};
   const permissionMap = usePermissionMap(requiredPagePermissionsMap);
-
-  const logoToShow = logo ? (
-    <div className="flex justify-center">
-      <div className="flex flex-col items-center gap-1">
-        <Image
-          src={logo || "/logo.png"}
-          alt="Organization logo"
-          width={200}
-          height={60}
-          className="object-contain h-12 w-auto max-w-[calc(100vw-6rem)]"
-        />
-        <p className="text-[10px] text-muted-foreground">
-          Powered by Archestra
-        </p>
-      </div>
-    </div>
-  ) : (
-    <div className="flex items-center gap-2 pl-8">
-      <Image
-        src="/logo.png"
-        alt="Logo"
-        width={28}
-        height={28}
-        className="h-auto w-auto"
-      />
-      <span className="text-base font-semibold">Archestra.AI</span>
-    </div>
-  );
 
   return (
     <Sidebar>
       <SidebarHeader className="pt-4">
-        {isLoadingAppearance ? <div className="h-[47px]" /> : logoToShow}
+        <AppLogo centered={false} />
       </SidebarHeader>
       <SidebarContent>
         {isAuthenticated && permissionMap && (
