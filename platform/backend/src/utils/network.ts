@@ -1,6 +1,28 @@
 import { isIP, isIPv4 } from "node:net";
 
 /**
+ * Resolve the real client IP from a Fastify request.
+ *
+ * Prefers `request.ip` which Fastify sets after applying the `trustProxy`
+ * option (configured via `ARCHESTRA_TRUST_PROXY`). When `trustProxy` is on,
+ * Fastify parses `X-Forwarded-For` and returns the correct client IP even
+ * behind a k8s load balancer. Falls back to the first hop in
+ * `X-Forwarded-For` for environments where `socket.remoteAddress` is
+ * unavailable or `ARCHESTRA_TRUST_PROXY` has not been set.
+ */
+export function getClientIp(request: {
+  ip: string;
+  headers: Record<string, string | string[] | undefined>;
+}): string | null {
+  if (request.ip) return request.ip;
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string")
+    return forwarded.split(",")[0]?.trim() || null;
+  if (Array.isArray(forwarded)) return forwarded[0] ?? null;
+  return null;
+}
+
+/**
  * Check whether an IP address string is a loopback (localhost) address.
  *
  * Covers:

@@ -4,6 +4,7 @@ import UserTokenModel from "@/models/user-token";
 import { reportAuditWriteFailure } from "@/observability/metrics/audit";
 import type { FastifyInstanceWithZod } from "@/server";
 import type { AuditActorType, AuditEventName, AuditOutcome } from "@/types";
+import { getClientIp } from "@/utils/network";
 import {
   type AuditableRouteConfig,
   deriveAction,
@@ -106,7 +107,7 @@ export function registerAuditLogHook(fastify: FastifyInstanceWithZod): void {
                 | undefined,
             });
 
-    const sourceIp = extractIp(request);
+    const sourceIp = getClientIp(request);
     const userAgent =
       (request.headers["user-agent"] as string | undefined) ?? null;
     const httpPath = stripQueryString(request.url).slice(0, 2048);
@@ -315,27 +316,6 @@ function stripQueryString(url: string): string {
     const q = url.indexOf("?");
     return q === -1 ? url : url.slice(0, q);
   }
-}
-
-/**
- * Resolve the client IP for an audited request.
- *
- * Prefers `request.ip` — Fastify applies the `trustProxy` setting so this
- * already incorporates `x-forwarded-for` when a trusted proxy is configured.
- * Falls back to the first hop in `x-forwarded-for` for environments where
- * `socket.remoteAddress` is unavailable (e.g. Unix-socket listeners) and for
- * setups that have a proxy but haven't configured `ARCHESTRA_TRUST_PROXY`.
- */
-function extractIp(request: {
-  ip: string;
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  if (request.ip) return request.ip;
-  const forwarded = request.headers["x-forwarded-for"];
-  if (typeof forwarded === "string")
-    return forwarded.split(",")[0]?.trim() || null;
-  if (Array.isArray(forwarded)) return forwarded[0] ?? null;
-  return null;
 }
 
 async function resolveAfterState(params: {
